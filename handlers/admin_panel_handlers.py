@@ -422,6 +422,24 @@ async def change_min_deposit_start(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
+@admin_router.message(StateFilter(Admin.change_min_deposit), F.text)
+async def process_new_min_deposit(message: Message, state: FSMContext):
+    """Обробляє нове значення мінімального депозиту і зберігає його."""
+    from app.dispatcher import admin_panel
+    text = message.text.strip().replace(",", ".")
+    try:
+        amount = float(text)
+        if amount < 0:
+            raise ValueError
+    except ValueError:
+        await message.answer("❌ Введіть коректне невід'ємне число. Наприклад: 20 або 20.5")
+        return
+
+    admin_panel.set_min_deposit(amount)
+    await message.answer(f"✅ Мінімальний депозит оновлено: ${amount}")
+    await state.clear()
+    await _show_referral_panel(message, state)
+
 @admin_router.callback_query(F.data == "admin_change_ref_link")
 async def change_ref_link_start(callback: CallbackQuery, state: FSMContext):
     """Починає процес зміни реферального посилання."""

@@ -281,7 +281,7 @@ class AdminPanel:
     
     def get_referral_settings(self) -> Dict:
         """Отримання налаштувань реферальної програми."""
-        data = self._load_data()  # Завантажуємо свіжі дані з файлу
+        data = self.data  # Використовуємо уже завантажені дані в пам'яті
         # Для зворотної сумісності, якщо посилання ще в старому місці
         if "referral_link" not in data.get("referral_settings", {}):
             old_link = data.get("settings", {}).get("referral_link")
@@ -292,7 +292,7 @@ class AdminPanel:
                 # Видаляємо стару структуру, якщо вона є
                 if "settings" in data:
                     data.pop("settings")
-                self._save_data(data)
+                self._save_data()
 
         return data.get("referral_settings", self._get_default_data()["referral_settings"])
 
@@ -315,7 +315,7 @@ class AdminPanel:
 
     def set_min_deposit(self, amount: float):
         """Встановлює мінімальний депозит."""
-        self.data["referral_settings"]["min_deposit"] = amount
+        self.data.setdefault("referral_settings", {})["min_deposit"] = amount
         self._save_data()
 
     def get_wallet_address(self) -> str:
