@@ -686,28 +686,27 @@ class TradingAPI:
             ftd_amount = parsed_data.get('ftd_amount', 0.0)
             sum_of_deposits = parsed_data.get('sum_of_deposits', 0.0)
 
-            # Создаем окно ±10 от минимального депозита
+            # Поріг прийняття: допускаємо заниження на $10, верхньої межі немає
             deposit_window = 10.0
             min_threshold = max(0, min_deposit - deposit_window)
-            max_threshold = min_deposit + deposit_window
 
             logger.info(
                 f"Перевірка депозиту для UID {uid}: "
-                f"Required: ${min_deposit} (окно: ${min_threshold:.2f} - ${max_threshold:.2f}), "
+                f"Required: ${min_deposit} (порог принятия: ≥ ${min_threshold:.2f}), "
                 f"FTD: ${ftd_amount}, Sum of Deposits: ${sum_of_deposits}"
             )
 
-            # ОСНОВНА ЛОГІКА: Перевіряємо, чи є перший або загальний депозит в пределах окна
-            # Депозит считается достаточным если он в диапазоне [min_deposit-10, min_deposit+10]
+            # Новая логика: депозит считается достаточным, если хотя бы одно из значений
+            # FTD или SumOfDeposits не меньше (min_deposit - 10). Верхнего ограничения нет.
             has_sufficient_deposit = (
-                (min_threshold <= ftd_amount <= max_threshold) or 
-                (min_threshold <= sum_of_deposits <= max_threshold)
+                (ftd_amount is not None and ftd_amount >= min_threshold) or 
+                (sum_of_deposits is not None and sum_of_deposits >= min_threshold)
             )
 
             if has_sufficient_deposit:
-                logger.info(f"✅ Депозит для UID {uid} підтверджено (в пределах окна ±{deposit_window}).")
+                logger.info(f"✅ Депозит для UID {uid} підтверджено (порог: ≥ ${min_threshold:.2f}).")
             else:
-                logger.warning(f"Недостатній депозит для UID {uid} (вне окна ±{deposit_window}).")
+                logger.warning(f"Недостатній депозит для UID {uid} (менше порога ${min_threshold:.2f}).")
 
             # Синхронизируем локальную БД со статусом депозита
             try:
