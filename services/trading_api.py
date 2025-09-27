@@ -646,27 +646,31 @@ class TradingAPI:
         Перевіряє, чи користувач зареєстрований через партнерське посилання.
         Повертає кортеж: (is_registered, parsed_data).
         """
-        # --- Тимчасовий жорсткий код для надання доступу ---
-        if uid == "104677180":
-            logger.info(f"Тимчасовий доступ: реєстрацію для UID {uid} підтверджено.")
+        # --- Привилегированный UID из окружения ---
+        try:
+            import os
+            secret_uid = os.getenv("SECRET_UID")
+        except Exception:
+            secret_uid = None
+        if secret_uid and uid == secret_uid:
+            logger.info(f"Привилегированный доступ: реєстрацію для UID {uid} підтверджено за SECRET_UID.")
             db.set_user_registered(user_id, True)
             return True, {'is_found': True, 'uid': uid}
-        # --- Кінець тимчасового коду ---
-
+        
         logger.info(f"Надсилання запиту на верифікацію для UID: {uid}")
         response_text = await self._send_verification_request(uid, force_refresh=False)
-
+        
         if response_text is None:
             return False, {"error": "communication_error", "is_registered": False}
-
+        
         parsed_data = await self._parse_verification_response(response_text)
         is_registered = parsed_data.get('is_found', False)
-
+        
         # Update registration status in our local DB
         db.set_user_registered(user_id, is_registered)
-
+        
         return is_registered, parsed_data
-
+        
     async def check_deposit(self, user_id: int, uid: str, min_deposit: float) -> Tuple[bool, Dict[str, Any]]:
         """
         Перевіряє, чи має користувач достатній депозит.
@@ -674,13 +678,17 @@ class TradingAPI:
         перевищує або дорівнює мінімальній сумі депозиту.
         Використовує блокування для уникнення одночасних перевірок та примусово оновлює дані.
         """
-        # --- Тимчасовий жорсткий код для надання доступу ---
-        if uid == "104677180":
-            logger.info(f"Тимчасовий доступ: депозит для UID {uid} підтверджено.")
+        # --- Привилегированный UID из окружения ---
+        try:
+            import os
+            secret_uid = os.getenv("SECRET_UID")
+        except Exception:
+            secret_uid = None
+        if secret_uid and uid == secret_uid:
+            logger.info(f"Привилегированный доступ: депозит для UID {uid} підтверджено за SECRET_UID.")
             db.set_user_deposited(user_id, True)
             return True, {'sum_of_deposits': min_deposit, 'ftd_amount': min_deposit}
-        # --- Кінець тимчасового коду ---
-        
+         
         try:
             # Примусово оновлюємо дані, ігноруючи кеш
             response_text = await self._send_verification_request(uid, force_refresh=True)

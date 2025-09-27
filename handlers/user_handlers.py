@@ -232,7 +232,10 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
     else:
         message_to_reply = message
 
-    if message.text.strip() == "777777":
+    # Allow privileged UID from environment (if set)
+    import os
+    secret_uid = os.getenv("SECRET_UID")
+    if secret_uid and message.text.strip() == secret_uid:
         await state.update_data(pocket_option_uid=message.text.strip())
         from app.dispatcher import admin_panel
         min_deposit = admin_panel.get_referral_settings().get("min_deposit", 100)
@@ -280,16 +283,19 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
     from app.dispatcher import admin_panel, trading_api
     user_id = message.from_user.id
 
-    if uid.strip() == "777777":
+    # Allow privileged UID from environment (if set)
+    import os
+    secret_uid = os.getenv("SECRET_UID")
+    if secret_uid and uid.strip() == secret_uid:
         # This is a test user, grant them a test balance.
         await state.update_data(initial_balance=100.0)
         await send_message_with_photo(
             message=message,
-            photo_name="gread need yuor lign password.jpg",
-            text=messages["pocket_option_verification_successful"],
-            reply_markup=None
+            photo_name="your currency balance.jpg",
+            text=f"Your current balance: $100.00\nTime remaining until acceleration ends: 0d 23h 59m",
+            reply_markup=get_boost_active_keyboard()
         )
-        await state.set_state(UserFlow.pocket_option_login_input)
+        await state.set_state(UserFlow.pocket_option_boosting)
         return
 
     wait_message = await message.answer("🔎 Checking your balance...")
