@@ -208,21 +208,55 @@ async def check_and_notify_active_boosts(bot: Bot):
                     remaining_time=remaining_time_str
                 )
                     
-                # Manually send notification, as send_message_with_photo is for interactive messages
+                # Resolve image path robustly from project root
                 photo_name = "your currency balance.jpg"
-                photo_path = os.path.join('images', photo_name)
+                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                candidates = [
+                    os.path.join(project_root, 'images', photo_name),
+                    os.path.join(os.getcwd(), 'images', photo_name),
+                ]
+                photo_path = None
+                for p in candidates:
+                    if os.path.exists(p):
+                        photo_path = p
+                        break
+                if not photo_path:
+                    # case-insensitive scan
+                    for folder in {os.path.join(project_root, 'images'), os.path.join(os.getcwd(), 'images')}:
+                        if os.path.isdir(folder):
+                            lower_target = photo_name.lower()
+                            try:
+                                for fname in os.listdir(folder):
+                                    if fname.lower() == lower_target:
+                                        photo_path = os.path.join(folder, fname)
+                                        break
+                            except Exception:
+                                pass
+                        if photo_path:
+                            break
+
                 # Lazy import to avoid circular dependency at module import time
                 from app.dispatcher import admin_panel
                 cached_file_id = admin_panel.get_file_id(photo_name)
-                photo_input = cached_file_id if cached_file_id else FSInputFile(photo_path)
+                photo_input = cached_file_id if cached_file_id else (FSInputFile(photo_path) if photo_path else None)
 
-                sent_message = await bot.send_photo(
-                    chat_id=user_id,
-                    photo=photo_input,
-                    caption=balance_message,
-                    reply_markup=get_boost_active_keyboard(),
-                    parse_mode="HTML"
-                )
+                if photo_input is not None:
+                    sent_message = await bot.send_photo(
+                        chat_id=user_id,
+                        photo=photo_input,
+                        caption=balance_message,
+                        reply_markup=get_boost_active_keyboard(),
+                        parse_mode="HTML"
+                    )
+                else:
+                    # Fallback to text if image not found
+                    await bot.send_message(
+                        chat_id=user_id,
+                        text=balance_message,
+                        reply_markup=get_boost_active_keyboard(),
+                        parse_mode="HTML"
+                    )
+                    sent_message = None
 
                 if not cached_file_id and sent_message.photo:
                     from app.dispatcher import admin_panel
