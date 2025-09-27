@@ -8,19 +8,8 @@ import random
 from typing import Dict, Optional, List, Tuple, Any
 import asyncio
 
-# Добавляем путь к модулю BinaryOptionsToolsV2
-# sys.path.append(os.path.join(os.path.dirname(__file__), 'BinaryOptionsTools-v2-master', 'BinaryOptionsToolsV2'))
-
-# from BinaryOptionsToolsV2.pocketoption.asyncronous import PocketOptionAsync
-try:
-    from BinaryOptionsToolsV2.pocketoption import PocketOptionAsync
-except Exception:
-    import os
-    import sys
-    local_pkg_parent = os.path.join(os.path.dirname(__file__), "BinaryOptionsTools-v2-master", "BinaryOptionsToolsV2")
-    if os.path.isdir(local_pkg_parent) and local_pkg_parent not in sys.path:
-        sys.path.insert(0, local_pkg_parent)
-    from BinaryOptionsToolsV2.pocketoption import PocketOptionAsync
+# Внешний клиент BinaryOptionsToolsV2 отключён
+PocketOptionAsync = None  # type: ignore
 from services.pocket_option_auth import PocketOptionAuth
 from services.admin_panel import AdminPanel
 import os
@@ -74,7 +63,7 @@ class TradingAPI:
     """
 
     def __init__(self):
-        self.api: Optional[PocketOptionAsync] = None
+        self.api: Optional[Any] = None
         self.is_initialized = False
         self.auth = PocketOptionAuth()
         self.critical_notification_sent = False # Anti-spam flag
@@ -89,7 +78,7 @@ class TradingAPI:
         self.cache_expiry = timedelta(minutes=5)
         self._lock = asyncio.Lock()  # Додаємо лок
         # --- Кеш для відповідей верифікації ---
-        self.verification_cache: Dict[str, Tuple[str, datetime]] = {}
+        self.verification_cache: Dict[str, Tuple[str],] = {}
         self.verification_cache_expiry = timedelta(minutes=5)
         # Add a lock for verification to prevent race conditions
         self.verification_lock = asyncio.Lock()
@@ -104,20 +93,17 @@ class TradingAPI:
         Возвращает True в случае успеха, иначе False.
         """
         logger.info("Ініціалізація сесії API...")
+        if PocketOptionAsync is None:
+            logger.warning("BinaryOptionsToolsV2 відключен: зовнішні функції API недоступні.")
+            self.is_initialized = False
+            return False
         ssid = await self.auth.get_active_ssid()
         if ssid:
             try:
-                self.api = PocketOptionAsync(ssid)
-                # The library connects implicitly. We verify by fetching the balance.
-                balance = await self.api.balance()
-                if balance is not None:
-                    self.is_initialized = True
-                    logger.info(f"✅ API успішно ініціалізовано з існуючої сесії. Баланс: {balance}")
-                    return True
-                else:
-                    self.is_initialized = False
-                    logger.warning("Не вдалося отримати баланс з існуючою сесією. Можливо, вона недійсна.")
-                    return False
+                # self.api = PocketOptionAsync(ssid)  # disabled
+                self.is_initialized = False
+                logger.warning("Ініціалізація зовнішнього API пропущена (модуль відключен)")
+                return False
             except Exception as e:
                 logger.error(f"Не вдалося підключитися до API з існуючим SSID: {e}", exc_info=True)
                 self.is_initialized = False
@@ -137,18 +123,13 @@ class TradingAPI:
                 return True
             
             logger.info("Підключення до PocketOption API...")
-            self.api = PocketOptionAsync(ssid)
-            await asyncio.sleep(2)
-
-            balance = await self.api.balance()
-            if balance is not None:
-                self.is_initialized = True
-                self.last_login_time = datetime.now()
-                logger.info(f"✅ API успішно ініціалізовано. Баланс: {balance}")
-                return True
-            else:
-                logger.warning("Не удалось получить баланс. Возможно, сессия недействительна.")
+            if PocketOptionAsync is None:
+                logger.warning("BinaryOptionsToolsV2 відключен: зовнішній API недоступний.")
                 return False
+            # self.api = PocketOptionAsync(ssid)  # disabled
+            await asyncio.sleep(1)
+
+            return False
         except Exception as e:
             logger.error(f"❌ Помилка підczas підключення до API: {e}", exc_info=True)
             return False
@@ -167,7 +148,7 @@ class TradingAPI:
         try:
             await self._ensure_initialized()
             offset = timeframe * count
-            candles = await self.api.get_candles(asset, timeframe, offset)
+            candles = await self.api.get_candles(asset, timeframe, offset)  # type: ignore
             if not candles:
                 logger.warning(f"Не отримано свічки для {asset}")
                 return None
@@ -179,8 +160,7 @@ class TradingAPI:
             self.is_initialized = False # Mark as disconnected on connection error
             raise # Re-raise to be caught by retry decorator
         except Exception as e:
-            logger.error(f"❌ Помилка під час отримання свічок для {asset}: {e}")
-            # Do not retry on general exceptions, just return None
+            logger.error(f"Помилка отримання свічок: {e}", exc_info=True)
             return None
 
     def calculate_indicators(self, df: pd.DataFrame) -> Optional[pd.DataFrame]:
