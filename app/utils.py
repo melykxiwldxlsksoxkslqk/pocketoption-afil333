@@ -68,6 +68,25 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         message_id = getattr(message, 'message_id', None)
         original_message_to_delete = message.message_id if not edit else None
 
+    # If we're editing and the new text/caption is identical to existing, skip API call
+    if edit:
+        try:
+            if is_callback:
+                current_text = message.message.caption or message.message.text or ""
+            else:
+                current_text = getattr(message, 'caption', None) or getattr(message, 'text', None) or ""
+            if isinstance(text, str) and current_text.strip() == text.strip():
+                if is_callback:
+                    try:
+                        await message.answer()
+                    except Exception:
+                        pass
+                    return message.message
+                return message
+        except Exception:
+            # If introspection fails, proceed normally
+            pass
+
     photo_path = _resolve_image_path(photo_name)
     if not photo_path:
         logger.error(f"Photo not found: {photo_name}")
