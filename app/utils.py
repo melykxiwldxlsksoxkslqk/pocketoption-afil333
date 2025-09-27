@@ -17,6 +17,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def _resolve_image_path(photo_name: str) -> str | None:
+    """Try to find the image by name relative to project root regardless of CWD.
+    Returns absolute path or None if not found."""
+    candidates = []
+    # app/utils.py -> project root = parent of app
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    candidates.append(os.path.join(project_root, 'images', photo_name))
+    # Also try current working directory
+    candidates.append(os.path.join(os.getcwd(), 'images', photo_name))
+
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+
+    # Case-insensitive lookup inside known images folders
+    for folder in {os.path.join(project_root, 'images'), os.path.join(os.getcwd(), 'images')}:
+        if os.path.isdir(folder):
+            lower_target = photo_name.lower()
+            try:
+                for fname in os.listdir(folder):
+                    if fname.lower() == lower_target:
+                        return os.path.join(folder, fname)
+            except Exception:
+                pass
+    return None
+
 async def send_message_with_photo(message: Message, photo_name: str, text: str, reply_markup=None, parse_mode="HTML", edit=False):
     """
     Sends or edits a message to include a photo, using cached file_id if available.
@@ -34,20 +60,24 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         original_message_to_delete = message.message.message_id if not edit else None
     else:
         # For regular messages, we edit the message itself
+        # Guard if message is None (e.g., previous call failed and returned None)
+        if message is None:
+            logger.error("send_message_with_photo called with message=None")
+            return None
         chat_id = message.chat.id
-        message_id = message.message_id
+        message_id = getattr(message, 'message_id', None)
         original_message_to_delete = message.message_id if not edit else None
 
-
-    photo_path = os.path.join('images', photo_name)
-    if not os.path.exists(photo_path):
-        logger.error(f"Photo not found at {photo_path}")
-        # Fallback to a text message
-        if edit:
-            await message.bot.edit_message_text(text, chat_id, message_id, reply_markup=reply_markup, parse_mode=parse_mode)
-        else:
-            await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
-        return
+    photo_path = _resolve_image_path(photo_name)
+    if not photo_path:
+        logger.error(f"Photo not found: {photo_name}")
+        # Fallback to a text message and RETURN the message so callers can reuse it
+        if edit and message_id is not None:
+            try:
+                return await message.bot.edit_message_text(text, chat_id, message_id, reply_markup=reply_markup, parse_mode=parse_mode)
+            except Exception as e:
+                logger.warning(f"Edit text fallback failed: {e}. Sending new message")
+        return await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
 
     cached_file_id = admin_panel.get_file_id(photo_name)
     photo_input = cached_file_id if cached_file_id else FSInputFile(photo_path)
@@ -80,7 +110,7 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
                 parse_mode=parse_mode
             )
 
-        if not cached_file_id and sent_message.photo:
+        if not cached_file_id and getattr(sent_message, 'photo', None):
             admin_panel.set_file_id(photo_name, sent_message.photo[-1].file_id)
         
         return sent_message
@@ -89,11 +119,11 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         logger.error(f"Could not send or edit photo message: {e}")
         # Fallback to sending a new text message if editing/sending photo fails
         try:
-            if edit:
-                await message.bot.edit_message_text(text, chat_id, message_id, reply_markup=reply_markup, parse_mode=parse_mode)
+            if edit and message_id is not None:
+                return await message.bot.edit_message_text(text, chat_id, message_id, reply_markup=reply_markup, parse_mode=parse_mode)
             else:
-                 # To avoid duplicate messages, let's just log the error if initial send fails
-                 logger.error("Initial photo send failed, not sending fallback text to avoid duplicates.")
+                 # To avoid duplicate messages, let's just send a single fallback text
+                return await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
         except Exception as fallback_e:
             logger.error(f"Fallback text message also failed: {fallback_e}")
     except Exception as e:
