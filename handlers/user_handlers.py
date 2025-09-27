@@ -3,6 +3,7 @@ import json
 import logging
 import random
 import re
+import os
 
 from aiogram import Router, F, types, Bot
 from aiogram.filters import Command, StateFilter
@@ -29,8 +30,10 @@ from app.utils import send_message_with_photo, get_remaining_time_str
 MANAGER_URL = "https://t.me/your_manager_username" # IMPORTANT: REPLACE WITH REAL MANAGER LINK
 # The bot will use the existing verification logic, so no need for a separate link here.
 
-# Load message templates
-with open('message_templates.json', 'r', encoding='utf-8') as f:
+# Load message templates (path relative to project root)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+TEMPLATES_PATH = os.path.join(BASE_DIR, 'message_templates.json')
+with open(TEMPLATES_PATH, 'r', encoding='utf-8') as f:
     messages = json.load(f)
 
 user_router = Router()
