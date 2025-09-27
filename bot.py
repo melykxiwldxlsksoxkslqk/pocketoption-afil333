@@ -58,8 +58,12 @@ async def main():
         # auth_task.cancel()
 
         # Отключение Telethon клиента
-        if telethon_client.is_connected():
-            await telethon_client.disconnect()
+        try:
+            if telethon_client.is_connected:
+                await telethon_client.disconnect()
+        except Exception:
+            # Ignore shutdown errors
+            pass
         
         # Сохранение данных админ-панели
         logger.info("Сохранение данных...")

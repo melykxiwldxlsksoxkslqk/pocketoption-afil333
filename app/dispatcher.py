@@ -49,7 +49,7 @@ async def on_startup(dispatcher):
 
 async def on_shutdown(dispatcher):
     """Function to run on shutdown."""
-    await telethon_client.stop()
+    await telethon_client.disconnect()
 
 # Регистрация роутеров
 dp.include_router(user_router)
