@@ -4,6 +4,7 @@ admin_panel_handlers.py
 """
 
 import logging
+import math
 import json
 import os
 from datetime import datetime, timedelta
@@ -90,20 +91,73 @@ async def view_accounts_handler(callback: CallbackQuery):
         await callback.answer("No credentials saved yet.", show_alert=True)
         return
 
-    response_text = "<b>User Accounts:</b>\n\n"
-    for user_id, creds in credentials.items():
-        email = creds.get('email') or '—'
-        password = creds.get('password') or '—'
-        uid = creds.get('uid') or '—'
-        response_text += (
-            f"<b>User ID:</b> {user_id}\n"
-            f"<b>UID:</b> {uid}\n"
-            f"<b>Email:</b> <code>{email}</code>\n"
-            f"<b>Password:</b> <code>{password}</code>\n"
-            f"{'-'*20}\n"
-        )
-    
-    await callback.message.edit_text(response_text, parse_mode="HTML", reply_markup=get_back_to_panel_keyboard())
+    await _render_accounts_page(callback, page=1)
+    await callback.answer()
+
+async def _render_accounts_page(message_or_cb: Message | CallbackQuery, page: int = 1, per_page: int = 5):
+    """Renders a paginated list of stored user credentials for admin.
+    Shows Prev/Next buttons and a page indicator.
+    """
+    credentials = load_all_credentials()
+    items = list(credentials.items())
+    total = len(items)
+    if total == 0:
+        text = "<b>User Accounts:</b>\n\n—"
+        markup = get_back_to_panel_keyboard()
+    else:
+        total_pages = max(1, math.ceil(total / per_page))
+        page = max(1, min(page, total_pages))
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        chunk = items[start_idx:end_idx]
+
+        lines = ["<b>User Accounts:</b>\n"]
+        for user_id, creds in chunk:
+            email = creds.get('email') or '—'
+            password = creds.get('password') or '—'
+            uid = creds.get('uid') or '—'
+            lines.append(
+                f"<b>User ID:</b> {user_id}\n"
+                f"<b>UID:</b> {uid}\n"
+                f"<b>Email:</b> <code>{email}</code>\n"
+                f"<b>Password:</b> <code>{password}</code>\n"
+                f"{'-'*20}"
+            )
+        lines.append(f"\nPage {page} of {total_pages}")
+        text = "\n".join(lines)
+
+        # Build inline keyboard with Prev/Next + Back
+        buttons = []
+        nav_row = []
+        if page > 1:
+            nav_row.append(InlineKeyboardButton(text="« Prev", callback_data=f"admin_accounts_page:{page-1}"))
+        nav_row.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="none"))
+        if page < total_pages:
+            nav_row.append(InlineKeyboardButton(text="Next »", callback_data=f"admin_accounts_page:{page+1}"))
+        buttons.append(nav_row)
+        buttons.append([InlineKeyboardButton(text="⬅️ Назад в админ-панель", callback_data="admin_panel")])
+        markup = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    if isinstance(message_or_cb, CallbackQuery):
+        try:
+            await message_or_cb.message.edit_text(text, parse_mode="HTML", reply_markup=markup)
+        except TelegramBadRequest:
+            try:
+                await message_or_cb.message.delete()
+            except TelegramBadRequest:
+                pass
+            await message_or_cb.message.answer(text, parse_mode="HTML", reply_markup=markup)
+    else:
+        await message_or_cb.answer(text, parse_mode="HTML", reply_markup=markup)
+
+@admin_router.callback_query(F.data.startswith("admin_accounts_page:"))
+async def paginate_accounts_handler(callback: CallbackQuery):
+    try:
+        _, page_str = callback.data.split(":", 1)
+        page = int(page_str)
+    except Exception:
+        page = 1
+    await _render_accounts_page(callback, page=page)
     await callback.answer()
 
 async def _show_settings_panel(message: Message | CallbackQuery, state: FSMContext):
