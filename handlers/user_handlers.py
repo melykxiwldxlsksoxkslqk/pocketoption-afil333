@@ -78,7 +78,14 @@ async def choose_platform_handler(callback: types.CallbackQuery, state: FSMConte
 @user_router.callback_query(F.data == "stats_irl", UserFlow.main_menu)
 async def stats_irl_handler(callback: types.CallbackQuery, state: FSMContext):
     """Handles 'Statistics Irl' button."""
-    account_index = random.randint(0, stats_service.get_accounts_count() - 1)
+    total = stats_service.get_accounts_count()
+    if total <= 0:
+        await callback.answer()
+        await callback.message.answer("Statistics are not available right now. Please try again later.")
+        await state.set_state(UserFlow.main_menu)
+        return
+
+    account_index = random.randint(0, total - 1)
     await state.update_data(account_index=account_index)
     account_info = stats_service.get_account_info(account_index)
     
