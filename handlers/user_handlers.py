@@ -714,53 +714,69 @@ async def current_balance_handler(callback: types.CallbackQuery, state: FSMConte
     """
     user_id = callback.from_user.id
     from app.dispatcher import bot, admin_panel
+    from services.boost_service import get_boost_data, save_boost_data
+    from app.utils import send_message_with_photo
 
     boost_info = get_user_boost_info(user_id)
-    if not boost_info or not boost_info.get("is_active"):
+    if not boost_info or not isinstance(boost_info, dict):
         await callback.answer("Your boost is not active.", show_alert=True)
-        # Optionally, send a message back to the main menu
-        await callback.message.edit_text(
-            "Your boost has ended. What would you like to do next?",
-            reply_markup=get_start_keyboard()
-        )
+        try:
+            await callback.message.edit_text(
+                "Your boost has ended. What would you like to do next?",
+                reply_markup=get_start_keyboard()
+            )
+        except Exception:
+            pass
         return
 
+    # If flagged inactive but end_time is still in the future, auto-reactivate
+    try:
+        end_time = datetime.fromisoformat(boost_info['end_time'])
+        if not boost_info.get("is_active") and datetime.now() < end_time:
+            data = get_boost_data()
+            user_key = str(user_id)
+            if user_key in data:
+                data[user_key]['is_active'] = True
+                save_boost_data(data)
+                boost_info = data[user_key]
+        elif not boost_info.get("is_active"):
+            await callback.answer("Your boost is not active.", show_alert=True)
+            try:
+                await callback.message.edit_text(
+                    "Your boost has ended. What would you like to do next?",
+                    reply_markup=get_start_keyboard()
+                )
+            except Exception:
+                pass
+            return
+    except Exception:
+        pass
+ 
     current_balance = boost_info['current_balance']
     end_time = datetime.fromisoformat(boost_info['end_time'])
     remaining_time = get_remaining_time_str(end_time)
-    
-    # Send the same message as the periodic update
-    photo_path = "images/your currency balance.jpg"
+     
+    # Send/update using robust helper (resolves image path)
     caption = (
         f"Your current balance: ${current_balance:,.2f}\n"
         f"Time remaining until acceleration ends: {remaining_time}"
     )
-
-    # We edit the current message to avoid chat spam
+ 
     try:
-        # We need to import InputMediaPhoto and FSInputFile here
-        from aiogram.types import InputMediaPhoto, FSInputFile
-        from aiogram.exceptions import TelegramBadRequest
-
-        await callback.message.edit_media(
-            media=InputMediaPhoto(media=FSInputFile(photo_path), caption=caption),
-            reply_markup=get_boost_active_keyboard()
+        await send_message_with_photo(
+            message=callback.message,
+            photo_name="your currency balance.jpg",
+            text=caption,
+            reply_markup=get_boost_active_keyboard(),
+            edit=True
         )
         await callback.answer()
-    except TelegramBadRequest as e:
-        if "message is not modified" in str(e):
-            await callback.answer("Your balance hasn't changed since the last update.", show_alert=True)
-        else:
-            # If editing fails for other reasons (e.g., message too old), send a new one.
-            await callback.message.answer_photo(
-                photo=FSInputFile(photo_path),
-                caption=caption,
-                reply_markup=get_boost_active_keyboard()
-            )
-            await callback.answer() # Acknowledge the callback
     except Exception as e:
         logging.error(f"Error updating current balance for user {user_id}: {e}")
-        await callback.answer("Error updating balance.", show_alert=True)
+        try:
+            await callback.answer("Error updating balance.", show_alert=True)
+        except Exception:
+            pass
         
     # Acknowledge the callback press if not already done - THIS IS DELETED
 
