@@ -14,6 +14,12 @@ _LOCK = threading.Lock()
 def _conn_cursor():
     conn = sqlite3.connect(DB_FILE)
     try:
+        # Performance PRAGMAs (safe for single-writer usage)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA temp_store=MEMORY;")
+        conn.execute("PRAGMA cache_size=-20000;")  # ~20MB cache
+        conn.execute("PRAGMA busy_timeout=5000;")  # wait up to 5s if locked
         yield conn, conn.cursor()
         conn.commit()
     finally:
@@ -30,6 +36,7 @@ def _init_db():
             )
             """
         )
+        # Create an index on json keys we frequently read? Not needed for KV.
 
 
 def _get_raw(key: str) -> Optional[str]:
@@ -153,6 +160,19 @@ def migrate_legacy_files():
             changed = True
 
     return changed
+
+
+def integrity_ok() -> bool:
+    """Runs PRAGMA integrity_check and returns True if DB is OK.
+    Use for quick health checks when diagnosing issues.
+    """
+    try:
+        with _conn_cursor() as (conn, cur):
+            cur.execute("PRAGMA integrity_check")
+            row = cur.fetchone()
+            return bool(row and row[0] == 'ok')
+    except Exception:
+        return False
 
 
 # Initialize on import
