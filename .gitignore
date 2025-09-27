@@ -1,2 +1,42 @@
+﻿# Secrets and environment
+.env
+*.env
+
+# Sessions and local data
+*.session
+telethon.session
+telethon.session-journal
+
+# Databases
+users.db
+*.sqlite
+*.db
+
+# Python caches and logs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual envs and tooling caches
+.venv/
+.env*/
+.pytest_cache/
+.mypy_cache/
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store
+
+# Binaries and drivers
+*.exe
+chromedriver-win64/
+
+# Vendor/third-party dumps (keep repo lean)
+BinaryOptionsTools-v2-master/
+PocketOptionAPI-main/
+pocketoptionapi/
 
 
