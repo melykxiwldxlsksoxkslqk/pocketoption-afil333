@@ -195,7 +195,7 @@ async def check_and_notify_active_boosts(bot: Bot):
         except Exception:
             last_notified_dt = None
         now_dt = datetime.now()
-        # Only notify if at least one hour passed AND balance actually changed
+        # Only notify if at least one hour passed (strict 3600s) AND balance actually changed
         elapsed_ok = last_notified_dt is None or (now_dt - last_notified_dt).total_seconds() >= 3600
         balance_changed = (original_balance is None) or (abs(float(new_balance) - float(original_balance)) > 1e-6)
         should_notify = elapsed_ok and balance_changed
@@ -265,12 +265,11 @@ async def check_and_notify_active_boosts(bot: Bot):
                     from app.dispatcher import admin_panel
                     admin_panel.set_file_id(photo_name, sent_message.photo[-1].file_id)
                     
-                # Update last_notified rounded to the next full hour to align schedule
+                # Update last_notified by adding exactly 3600 seconds from previous checkpoint (or now if None)
                 latest_data = get_boost_data()
                 if user_id_str in latest_data:
-                    # round up to next full hour to avoid multiple sends within same hour window
-                    rounded = (now_dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1))
-                    latest_data[user_id_str]['last_notified'] = rounded.isoformat()
+                    base = last_notified_dt or now_dt
+                    latest_data[user_id_str]['last_notified'] = (base + timedelta(seconds=3600)).isoformat()
                     save_boost_data(latest_data)
                 
                 logging.info(f"Successfully sent time-based balance update to {user_id_str}.")

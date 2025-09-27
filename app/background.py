@@ -101,7 +101,7 @@ async def boost_notification_scheduler():
             await check_and_notify_active_boosts(bot)
         except Exception as e:
             logging.error(f"Error in boost_notification_scheduler: {e}", exc_info=True)
-        await asyncio.sleep(300) # Check every 5 minutes to deliver ~hourly notifications on time
+        await asyncio.sleep(60) # Check every 60 seconds to hit the exact minute
 
 async def setup_background_tasks(dp):
     logging.info("Starting background tasks...")
