@@ -367,8 +367,9 @@ async def set_welcome_msg(callback: CallbackQuery, state: FSMContext):
     """Показує форму для зміни вітального повідомлення."""
     from app.dispatcher import admin_panel
     await state.set_state(Admin.change_welcome_message)
+    current = admin_panel.get_welcome_message()
     await callback.message.edit_text(
-        f"<b>Поточне повідомлення:</b>\n\n<i>{admin_panel.get_welcome_message()}</i>\n\n✍️ Введіть нове повідомлення:",
+        f"<b>Поточне повідомлення:</b>\n\n<i>{current}</i>\n\n✍️ Введіть нове повідомлення:",
         reply_markup=get_cancel_keyboard("admin_settings"),
         parse_mode="HTML"
     )
