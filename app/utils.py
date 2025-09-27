@@ -136,6 +136,9 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         return sent_message
 
     except TelegramBadRequest as e:
+        # Treat "message is not modified" as a benign no-op
+        if "message is not modified" in str(e).lower():
+            return message
         logger.error(f"Could not send or edit photo message: {e}")
         # Fallback to sending a new text message if editing/sending photo fails
         try:
