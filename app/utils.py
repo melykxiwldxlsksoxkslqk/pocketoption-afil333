@@ -74,13 +74,27 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         # Fallback to a text message and RETURN the message so callers can reuse it
         if edit and message_id is not None:
             try:
-                return await message.bot.edit_message_text(
-                    text=text,
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    reply_markup=reply_markup,
-                    parse_mode=parse_mode
-                )
+                # Try edit caption first (if the message is media)
+                try:
+                    return await message.bot.edit_message_caption(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        caption=text,
+                        reply_markup=reply_markup,
+                        parse_mode=parse_mode
+                    )
+                except TelegramBadRequest as e:
+                    msg = str(e).lower()
+                    if "message is not modified" in msg:
+                        return message
+                    # If no caption to edit, try editing text
+                    return await message.bot.edit_message_text(
+                        text=text,
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        reply_markup=reply_markup,
+                        parse_mode=parse_mode
+                    )
             except Exception as e:
                 logger.warning(f"Edit text fallback failed: {e}. Sending new message")
         return await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
@@ -126,15 +140,31 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         # Fallback to sending a new text message if editing/sending photo fails
         try:
             if edit and message_id is not None:
-                return await message.bot.edit_message_text(
-                    text=text,
-                    chat_id=chat_id,
-                    message_id=message_id,
-                    reply_markup=reply_markup,
-                    parse_mode=parse_mode
-                )
+                err = str(e).lower()
+                if "message is not modified" in err:
+                    return message
+                # Try edit caption (for media messages)
+                try:
+                    return await message.bot.edit_message_caption(
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        caption=text,
+                        reply_markup=reply_markup,
+                        parse_mode=parse_mode
+                    )
+                except TelegramBadRequest as e2:
+                    if "message is not modified" in str(e2).lower():
+                        return message
+                    # Fallback to editing text if caption edit is not applicable
+                    return await message.bot.edit_message_text(
+                        text=text,
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        reply_markup=reply_markup,
+                        parse_mode=parse_mode
+                    )
             else:
-                 # To avoid duplicate messages, let's just send a single fallback text
+                # To avoid duplicate messages, let's just send a single fallback text
                 return await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
         except Exception as fallback_e:
             logger.error(f"Fallback text message also failed: {fallback_e}")
