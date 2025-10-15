@@ -815,11 +815,10 @@ async def current_balance_handler(callback: types.CallbackQuery, state: FSMConte
  
     try:
         await send_message_with_photo(
-            message=callback.message,
+            message=callback,
             photo_name="your currency balance.jpg",
             text=caption,
-            reply_markup=get_boost_active_keyboard(),
-            edit=True
+            reply_markup=get_boost_active_keyboard()
         )
         await callback.answer()
     except Exception as e:
