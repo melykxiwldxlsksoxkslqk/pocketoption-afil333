@@ -11,7 +11,7 @@ import logging
 # to get keyboards and messages, avoiding direct dependencies if possible.
 from app.keyboards import get_boost_finished_keyboard, get_boost_active_keyboard
 from config.message_templates import load_messages
-from app.utils import get_remaining_time_str
+from app.utils import get_remaining_time_str, _resolve_image_path
 from aiogram.types import FSInputFile
 from aiogram.exceptions import TelegramBadRequest
 from storage.db_store import get_boost_data as storage_get_boost_data, set_boost_data as storage_set_boost_data
@@ -213,30 +213,8 @@ async def check_and_notify_active_boosts(bot: Bot):
                     
                 # Resolve image path robustly from project root
                 photo_name = "your currency balance.jpg"
-                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-                candidates = [
-                    os.path.join(project_root, 'images', photo_name),
-                    os.path.join(os.getcwd(), 'images', photo_name),
-                ]
-                photo_path = None
-                for p in candidates:
-                    if os.path.exists(p):
-                        photo_path = p
-                        break
-                if not photo_path:
-                    # case-insensitive scan
-                    for folder in {os.path.join(project_root, 'images'), os.path.join(os.getcwd(), 'images')}:
-                        if os.path.isdir(folder):
-                            lower_target = photo_name.lower()
-                            try:
-                                for fname in os.listdir(folder):
-                                    if fname.lower() == lower_target:
-                                        photo_path = os.path.join(folder, fname)
-                                        break
-                            except Exception:
-                                pass
-                        if photo_path:
-                            break
+                # Use shared resolver that applies images_map aliases (e.g., -> 16.jpg)
+                photo_path = _resolve_image_path(photo_name)
 
                 # Lazy import to avoid circular dependency at module import time
                 from app.dispatcher import admin_panel
