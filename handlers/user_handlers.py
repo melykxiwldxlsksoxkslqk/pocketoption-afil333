@@ -271,7 +271,7 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
     except Exception:
         pass
     
-    wait_message = await message_to_reply.answer("🔎 Checking your UID...")
+    wait_message = await message_to_reply.answer("🔎 Перевіряємо ваш UID...")
 
     # Step 1: Check registration
     is_registered, reg_data = await trading_api.check_registration(str(message_to_reply.from_user.id), message.text.strip())
@@ -608,7 +608,7 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     password_ok = bool(creds.get('password'))
     uid_ok = bool(creds.get('uid'))
     if not (email_ok and password_ok and uid_ok):
-        await callback.answer("Please send your login and password to continue.", show_alert=True)
+        await callback.answer("Будь ласка, надішліть ваш логін і пароль, щоб продовжити.", show_alert=True)
         await send_message_with_photo(
             message=callback,
             photo_name="gread need yuor lign password.jpg",
