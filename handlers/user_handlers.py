@@ -525,9 +525,22 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     initial_balance = user_data.get('initial_balance')
     platform = user_data.get('platform')
 
+    # Fallbacks to improve robustness after restarts or state losses
+    if platform is None:
+        platform = "pocket"
+        await state.update_data(platform=platform)
+    if initial_balance is None:
+        try:
+            from app.dispatcher import admin_panel
+            min_deposit_cfg = admin_panel.get_referral_settings().get("min_deposit", 100)
+            initial_balance = float(min_deposit_cfg) if isinstance(min_deposit_cfg, (int, float)) else 100.0
+        except Exception:
+            initial_balance = 100.0
+        await state.update_data(initial_balance=initial_balance)
+
     if initial_balance is None or platform is None:
         await callback.answer("Error: Could not find initial balance or platform. Please start over.", show_alert=True)
-        # Optionally, reset state
+        # Optionally guide user to start
         await state.clear()
         await start_handler(callback.message, state) # Go back to start
         return
