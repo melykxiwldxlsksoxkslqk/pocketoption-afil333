@@ -27,7 +27,7 @@ from app.utils import send_message_with_photo, get_remaining_time_str
 # Avoid circular import: import admin_panel lazily at usage sites
 
 # TODO: Replace with actual URLs
-MANAGER_URL = "https://t.me/your_manager_username" # IMPORTANT: REPLACE WITH REAL MANAGER LINK
+MANAGER_URL = "https://t.me/Trdrocketua_support" # Support link
 # The bot will use the existing verification logic, so no need for a separate link here.
 
 # Load message templates (path relative to project root)
