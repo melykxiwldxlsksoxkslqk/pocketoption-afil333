@@ -92,13 +92,16 @@ async def stats_irl_handler(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(account_index=account_index)
     account_info = stats_service.get_account_info(account_index)
     
-    if len(account_info) > 1024:
-        account_info = account_info[:1020] + "..."
+    title = messages.get("stats_title") or ""
+    combined_text = f"{title}\n\n{account_info}" if title else account_info
+    
+    if len(combined_text) > 1024:
+        combined_text = combined_text[:1020] + "..."
 
     await send_message_with_photo(
         message=callback,
         photo_name="Top account.jpg",
-        text=account_info,
+        text=combined_text,
         reply_markup=get_statistics_keyboard()
     )
     await state.set_state(UserFlow.main_menu) # Or back to start
@@ -163,15 +166,15 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                     await send_message_with_photo(
                         message=callback,
                         photo_name="your currency balance.jpg",
-                        text=f"Your current balance: ${boost_info['current_balance']:.2f}\n"
-                        f"Time remaining until acceleration ends: {time_left.days}d {hours}h {minutes}m",
+                        text=f"Ваш поточний баланс: ${boost_info['current_balance']:.2f}\n"
+                        f"Час до завершення розгону: {time_left.days}д {hours}г {minutes}хв",
                         reply_markup=get_boost_active_keyboard()
                     )
                     await state.set_state(UserFlow.pocket_option_boosting)
             
             elif boost_info.get('boost_count', 0) > 0: # Used free boost, now show paid
                 final_balance = boost_info.get('final_balance', boost_info.get('current_balance', 0))
-                amount_to_pay = 100 + (final_balance * 0.20)
+                amount_to_pay = 150 + (final_balance * 0.30)
                 await send_message_with_photo(
                     message=callback,
                     photo_name="free bots alrady used.jpg",
@@ -198,17 +201,18 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
         # No boost info, show the registration message
         from app.dispatcher import admin_panel
         settings = admin_panel.get_referral_settings()
-        link_all = settings.get("referral_link_all", "#")
-        link_russia = settings.get("referral_link_russia", "#")
+        # Prefer a single unified referral_link if present; fallback to region-specific
+        link_unified = settings.get("referral_link")
+        link_all = settings.get("referral_link_all")
+        link_russia = settings.get("referral_link_russia")
+        chosen_link = link_unified or link_all or link_russia or "#"
         min_deposit = admin_panel.get_referral_settings().get("min_deposit", 100)
         
         await send_message_with_photo(
             message=callback,
             photo_name="pocket option.jpg",
             text=messages["pocket_option_flow_message"].format(
-                referral_link_all=link_all,
-                referral_link_russia=link_russia,
-                min_deposit=min_deposit
+                referral_link=chosen_link
             ),
             reply_markup=get_pocket_option_prereg_keyboard(),
             parse_mode="HTML",
@@ -565,8 +569,8 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
         minutes, _ = divmod(remainder, 60)
 
         message_text = (
-            f"Your current balance: ${boost_info['current_balance']:.2f}\n"
-            f"Time remaining until acceleration ends: {time_left.days}d {hours}h {minutes}m"
+            f"Ваш поточний баланс: ${boost_info['current_balance']:.2f}\n"
+            f"Час до завершення розгону: {time_left.days}д {hours}г {minutes}хв"
         )
         
         await send_message_with_photo(
@@ -589,7 +593,7 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
     boost_info = get_user_boost_info(user_id)
 
     final_balance = boost_info.get('final_balance', boost_info.get('current_balance', 0))
-    amount_to_pay = 100 + (final_balance * 0.20)
+    amount_to_pay = 150 + (final_balance * 0.30)
 
     await send_message_with_photo(
         message=callback,
@@ -735,8 +739,8 @@ async def current_balance_handler(callback: types.CallbackQuery, state: FSMConte
      
     # Send/update using robust helper (resolves image path)
     caption = (
-        f"Your current balance: ${current_balance:,.2f}\n"
-        f"Time remaining until acceleration ends: {remaining_time}"
+        f"Ваш поточний баланс: ${current_balance:,.2f}\n"
+        f"Час до завершення розгону: {remaining_time}"
     )
  
     try:
@@ -768,13 +772,16 @@ async def view_statistics(callback: CallbackQuery, state: FSMContext):
     await state.update_data(account_index=0)
     account_info = stats_service.get_account_info(0)
     
-    if len(account_info) > 1024:
-        account_info = account_info[:1020] + "..."
+    title = messages.get("stats_title") or ""
+    combined_text = f"{title}\n\n{account_info}" if title else account_info
+    
+    if len(combined_text) > 1024:
+        combined_text = combined_text[:1020] + "..."
         
     await send_message_with_photo(
         message=callback,
         photo_name="Top account.jpg",
-        text=account_info,
+        text=combined_text,
         reply_markup=get_statistics_keyboard()
     )
     await state.set_state(UserFlow.main_menu) # Or back to start
@@ -790,13 +797,16 @@ async def update_statistics(callback: CallbackQuery, state: FSMContext):
     await state.update_data(account_index=new_index)
     account_info = stats_service.get_account_info(new_index)
 
-    if len(account_info) > 1024:
-        account_info = account_info[:1020] + "..."
+    title = messages.get("stats_title") or ""
+    combined_text = f"{title}\n\n{account_info}" if title else account_info
+
+    if len(combined_text) > 1024:
+        combined_text = combined_text[:1020] + "..."
 
     await send_message_with_photo(
         message=callback,
         photo_name="Top account.jpg",
-        text=account_info,
+        text=combined_text,
         reply_markup=get_statistics_keyboard()
     )
     await callback.answer()

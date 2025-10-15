@@ -7,7 +7,7 @@ from storage import (
     set_statistics_accounts as storage_set_statistics_accounts,
 )
 
-PLATFORMS = ["Pocket Option", "ByBit", "Binance"]
+PLATFORMS = ["Pocket Option"]
 
 class StatisticsService:
     def __init__(self):
@@ -25,7 +25,7 @@ class StatisticsService:
             for i in range(5):
                 accounts_data.append({
                     'id': 1000 + i,
-                    'platform': random.choice(PLATFORMS),
+                    'platform': "Pocket Option",
                     'boost_days': random.randint(30, 40),
                     'start_balance': 1000,
                     'current_balance': random.randint(9000, 11000),
@@ -34,7 +34,7 @@ class StatisticsService:
 
         for account in accounts_data:
             if 'platform' not in account:
-                account['platform'] = random.choice(PLATFORMS)
+                account['platform'] = "Pocket Option"
             if 'boost_days' not in account:
                 account['boost_days'] = random.randint(30, 40)
             if account.get('start_balance') != 1000:

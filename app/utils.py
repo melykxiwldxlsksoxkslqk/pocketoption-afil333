@@ -10,6 +10,7 @@ import pytz
 from functools import wraps
 from aiogram.types import FSInputFile
 from aiogram import types # Import the types module
+import json
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,15 +18,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Load optional images rename map once
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+_IMAGES_MAP_PATH = os.path.join(_PROJECT_ROOT, 'images_map.json')
+try:
+    with open(_IMAGES_MAP_PATH, 'r', encoding='utf-8') as _f:
+        _IMAGES_RENAME_MAP = json.load(_f)
+        # normalize keys to lowercase for case-insensitive lookup
+        _IMAGES_RENAME_MAP = {str(k).lower(): str(v) for k, v in _IMAGES_RENAME_MAP.items()}
+except Exception:
+    _IMAGES_RENAME_MAP = {}
+
+
+def _apply_image_alias(photo_name: str) -> str:
+    """Apply alias/rename map for image filenames (case-insensitive)."""
+    if not photo_name:
+        return photo_name
+    mapped = _IMAGES_RENAME_MAP.get(photo_name.lower())
+    return mapped or photo_name
+
+
 def _resolve_image_path(photo_name: str) -> str | None:
     """Try to find the image by name relative to project root regardless of CWD.
     Returns absolute path or None if not found."""
+    # Apply mapping first
+    effective_name = _apply_image_alias(photo_name)
+
     candidates = []
     # app/utils.py -> project root = parent of app
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    candidates.append(os.path.join(project_root, 'images', photo_name))
+    project_root = _PROJECT_ROOT
+    candidates.append(os.path.join(project_root, 'images', effective_name))
     # Also try current working directory
-    candidates.append(os.path.join(os.getcwd(), 'images', photo_name))
+    candidates.append(os.path.join(os.getcwd(), 'images', effective_name))
 
     for path in candidates:
         if os.path.exists(path):
@@ -34,7 +58,7 @@ def _resolve_image_path(photo_name: str) -> str | None:
     # Case-insensitive lookup inside known images folders
     for folder in {os.path.join(project_root, 'images'), os.path.join(os.getcwd(), 'images')}:
         if os.path.isdir(folder):
-            lower_target = photo_name.lower()
+            lower_target = effective_name.lower()
             try:
                 for fname in os.listdir(folder):
                     if fname.lower() == lower_target:

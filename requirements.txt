@@ -3,8 +3,8 @@ pydantic==2.8.2
 anyio==4.9.0
 APScheduler==3.11.0
 colorama==0.4.6
-numpy==1.25.2
-pandas==2.0.3
+numpy==1.26.4
+pandas==2.2.2
 pause==0.3
 python-dotenv==1.1.1
 pytz==2024.1

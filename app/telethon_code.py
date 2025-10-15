@@ -3,6 +3,7 @@ import os
 import asyncio
 from telethon import TelegramClient
 from dotenv import load_dotenv
+import warnings
 
 load_dotenv()
 
@@ -12,6 +13,14 @@ SESSION_NAME = "telethon.session"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Suppress noisy info logs from Telethon crypto backends and experimental warning
+warnings.filterwarnings(
+    "ignore",
+    message="Using async sessions support is an experimental feature",
+    category=UserWarning,
+)
+logging.getLogger('telethon.crypto.libssl').setLevel(logging.WARNING)
+logging.getLogger('telethon.crypto.aes').setLevel(logging.WARNING)
 
 class TelethonClient:
     def __init__(self, session_name, api_id, api_hash):
