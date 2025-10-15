@@ -319,7 +319,7 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
         await state.set_state(UserFlow.pocket_option_boosting)
         return
 
-    wait_message = await message.answer("🔎 Checking your balance...")
+    wait_message = await message.answer("🔎 Перевіряємо ваш баланс...")
     from app.dispatcher import admin_panel
     min_deposit = admin_panel.get_referral_settings().get("min_deposit", 100)
 
