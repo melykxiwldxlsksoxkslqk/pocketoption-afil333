@@ -328,14 +328,14 @@ def _format_asset_name(asset: str) -> str:
     return clean_name
 
 def get_remaining_time_str(end_time: datetime) -> str:
-    """Calculates the remaining time and returns it as a formatted string."""
+    """Calculates the remaining time and returns it as a formatted string (UA)."""
     now = datetime.now()
     remaining = end_time - now
     if remaining.total_seconds() <= 0:
-        return "0d 0h 0m"
+        return "0д 0г 0хв"
     
     days = remaining.days
     hours, remainder = divmod(remaining.seconds, 3600)
     minutes, _ = divmod(remainder, 60)
     
-    return f"{days}d {hours}h {minutes}m"
+    return f"{days}д {hours}г {minutes}хв"
