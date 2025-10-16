@@ -197,6 +197,44 @@ async def check_and_notify_active_boosts(bot: Bot):
             logging.warning(f"Could not find boost info for user {user_id_str} after update.")
             continue
 
+        # If boost already expired by time, finalize immediately (don't wait for 30-min job)
+        try:
+            end_time_dt = datetime.fromisoformat(boost_info_after_update['end_time'])
+        except Exception:
+            end_time_dt = None
+        now_dt = datetime.now()
+        if end_time_dt and now_dt >= end_time_dt:
+            # Stop boost and send final message once
+            stop_boost(user_id)
+            latest = get_boost_data().get(user_id_str) or boost_info_after_update
+            start_balance = latest.get('start_balance', 0.0)
+            final_balance = latest.get('final_balance') or latest.get('current_balance', 0.0)
+            try:
+                final_message = messages['pocket_option_boost_finished'].format(
+                    initial_balance=f"${start_balance:.2f}",
+                    final_balance=f"${final_balance:.2f}"
+                )
+                photo_path_finish = _resolve_image_path("Deposit bost complited.jpg")
+                if photo_path_finish:
+                    await bot.send_photo(
+                        chat_id=user_id,
+                        photo=FSInputFile(photo_path_finish),
+                        caption=final_message,
+                        reply_markup=get_boost_finished_keyboard(),
+                        parse_mode="HTML"
+                    )
+                else:
+                    await bot.send_message(
+                        chat_id=user_id,
+                        text=final_message,
+                        reply_markup=get_boost_finished_keyboard(),
+                        parse_mode="HTML"
+                    )
+            except Exception as e:
+                logging.error(f"Failed to send immediate finish message to {user_id_str}: {e}")
+            # Move to next user, no regular notify
+            continue
+
         new_balance = boost_info_after_update.get('current_balance')
         logging.info(f"User {user_id_str}: Original Balance=${original_balance}, New Balance=${new_balance}")
 
