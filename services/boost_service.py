@@ -92,7 +92,8 @@ def start_boost(user_id: int, initial_balance: float, platform: str):
         'current_balance': initial_balance,
         'final_balance': None,
         'boost_count': data.get(user_id_str, {}).get('boost_count', 0) + 1,
-        'platform': platform
+        'platform': platform,
+        'finished_notified': False
     }
     save_boost_data(data)
 
@@ -129,43 +130,7 @@ async def update_all_boosts(bot: Bot):
                 expired_user_ids.append(int(user_id_str))
 
     for user_id in expired_user_ids:
-        # Perform one final calculation to get the balance up to the expiration time
-        final_info = update_balance_on_demand(user_id)
-        
-        # Now mark as inactive and save final balance
-        current_data = get_boost_data()
-        user_id_str = str(user_id)
-
-        if user_id_str in current_data and current_data[user_id_str].get('is_active'):
-            current_data[user_id_str]['is_active'] = False
-            current_data[user_id_str]['final_balance'] = final_info['current_balance']
-            save_boost_data(current_data)
-
-            # Send boost finished message
-            try:
-                final_message = messages['pocket_option_boost_finished'].format(
-                    initial_balance=f"${final_info['start_balance']:.2f}",
-                    final_balance=f"${final_info['current_balance']:.2f}"
-                )
-                # Try to send with finish image (maps to 12.jpg)
-                photo_name = "Deposit bost complited.jpg"
-                photo_path = _resolve_image_path(photo_name)
-                if photo_path:
-                    await bot.send_photo(
-                        chat_id=user_id,
-                        photo=FSInputFile(photo_path),
-                        caption=final_message,
-                        reply_markup=get_boost_finished_keyboard(),
-                        parse_mode="HTML"
-                    )
-                else:
-                    await bot.send_message(
-                        user_id,
-                        final_message,
-                        reply_markup=get_boost_finished_keyboard()
-                    )
-            except Exception as e:
-                print(f"Failed to send boost finished message to {user_id_str}: {e}")
+        await finalize_boost_and_notify(bot, user_id, messages)
 
 def get_user_boost_info(user_id: int):
     data = get_boost_data()
@@ -204,37 +169,12 @@ async def check_and_notify_active_boosts(bot: Bot):
             end_time_dt = None
         now_dt = datetime.now()
         if end_time_dt and now_dt >= end_time_dt:
-            # Stop boost and send final message once
-            stop_boost(user_id)
-            latest = get_boost_data().get(user_id_str) or boost_info_after_update
-            start_balance = latest.get('start_balance', 0.0)
-            final_balance = latest.get('final_balance') or latest.get('current_balance', 0.0)
-            try:
-                final_message = messages['pocket_option_boost_finished'].format(
-                    initial_balance=f"${start_balance:.2f}",
-                    final_balance=f"${final_balance:.2f}"
-                )
-                photo_path_finish = _resolve_image_path("Deposit bost complited.jpg")
-                if photo_path_finish:
-                    await bot.send_photo(
-                        chat_id=user_id,
-                        photo=FSInputFile(photo_path_finish),
-                        caption=final_message,
-                        reply_markup=get_boost_finished_keyboard(),
-                        parse_mode="HTML"
-                    )
-                else:
-                    await bot.send_message(
-                        chat_id=user_id,
-                        text=final_message,
-                        reply_markup=get_boost_finished_keyboard(),
-                        parse_mode="HTML"
-                    )
-            except Exception as e:
-                logging.error(f"Failed to send immediate finish message to {user_id_str}: {e}")
-            # Move to next user, no regular notify
+            await finalize_boost_and_notify(bot, user_id, messages)
             continue
 
+        # Skip notifying if already finalized
+        if boost_info_after_update.get('finished_notified'):
+            continue
         new_balance = boost_info_after_update.get('current_balance')
         logging.info(f"User {user_id_str}: Original Balance=${original_balance}, New Balance=${new_balance}")
 
@@ -311,3 +251,52 @@ async def check_and_notify_active_boosts(bot: Bot):
                     logging.error(f"Failed to send balance update to {user_id_str} due to Telegram error: {e}", exc_info=True)
             except Exception as e:
                 logging.error(f"An unexpected error occurred while sending balance update to {user_id_str}: {e}", exc_info=True) 
+
+async def finalize_boost_and_notify(bot: Bot, user_id: int, messages=None) -> bool:
+    """Marks boost inactive, sets final balance, and sends finish message once."""
+    try:
+        if messages is None:
+            messages = load_messages()
+        data = get_boost_data()
+        key = str(user_id)
+        info = data.get(key)
+        if not isinstance(info, dict):
+            return False
+        if info.get('finished_notified'):
+            return False
+        # Bring balance up-to-date to end time
+        final_info = update_balance_on_demand(user_id) or info
+        # Persist flags
+        latest = get_boost_data()
+        if key in latest:
+            latest[key]['is_active'] = False
+            latest[key]['final_balance'] = final_info.get('current_balance', info.get('current_balance', 0.0))
+            latest[key]['finished_notified'] = True
+            save_boost_data(latest)
+
+        start_bal = final_info.get('start_balance', info.get('start_balance', 0.0))
+        fin_bal = final_info.get('current_balance', info.get('current_balance', 0.0))
+        final_message = messages['pocket_option_boost_finished'].format(
+            initial_balance=f"${start_bal:.2f}",
+            final_balance=f"${fin_bal:.2f}"
+        )
+        photo_path = _resolve_image_path("Deposit bost complited.jpg")
+        if photo_path:
+            await bot.send_photo(
+                chat_id=user_id,
+                photo=FSInputFile(photo_path),
+                caption=final_message,
+                reply_markup=get_boost_finished_keyboard(),
+                parse_mode="HTML"
+            )
+        else:
+            await bot.send_message(
+                chat_id=user_id,
+                text=final_message,
+                reply_markup=get_boost_finished_keyboard(),
+                parse_mode="HTML"
+            )
+        return True
+    except Exception as e:
+        logging.error(f"Failed to finalize boost for {user_id}: {e}")
+        return False 
