@@ -730,9 +730,20 @@ async def payment_screenshot_handler(message: types.Message, state: FSMContext):
 async def stop_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     """Handles the 'Stop Boost' button."""
     user_id = callback.from_user.id
+    await _process_stop_boost(event=callback, state=state, user_id=user_id)
+
+
+@user_router.message(F.text.regexp(r"(?i)^\s*зупинити\s+розгін!?$"))
+async def stop_boost_text_handler(message: types.Message, state: FSMContext):
+    """Handles typed or reply-keyboard 'Зупинити розгін'."""
+    user_id = message.from_user.id
+    await _process_stop_boost(event=message, state=state, user_id=user_id)
+
+
+async def _process_stop_boost(event: types.Message | types.CallbackQuery, state: FSMContext, user_id: int):
     boost_info = get_user_boost_info(user_id)
     
-    await asyncio.sleep(random.randint(3, 5))
+    await asyncio.sleep(random.randint(2, 4))
     
     if boost_info:
         final_message = messages['pocket_option_boost_finished'].format(
@@ -740,21 +751,25 @@ async def stop_boost_handler(callback: types.CallbackQuery, state: FSMContext):
             final_balance=f"${boost_info['current_balance']:.2f}"
         )
         await send_message_with_photo(
-            message=callback,
+            message=event,
             photo_name="Deposit bost complited.jpg", # maps -> 12.jpg
             text=final_message,
             reply_markup=get_boost_finished_keyboard()
         )
     else:
         await send_message_with_photo(
-            message=callback,
+            message=event,
             photo_name="succes connected.jpg",
-            text=messages["pocket_option_stopped"],
+            text=messages.get("pocket_option_stopped", "✅ Розгін зупинено."),
             reply_markup=get_boost_finished_keyboard()
         )
     stop_boost(user_id)
     await state.clear()
-    await callback.answer()
+    if isinstance(event, types.CallbackQuery):
+        try:
+            await event.answer()
+        except Exception:
+            pass
 
 @user_router.callback_query(F.data == "current_balance")
 async def current_balance_handler(callback: types.CallbackQuery, state: FSMContext):
