@@ -147,13 +147,26 @@ async def update_all_boosts(bot: Bot):
                     initial_balance=f"${final_info['start_balance']:.2f}",
                     final_balance=f"${final_info['current_balance']:.2f}"
                 )
-                await bot.send_message(
-                    user_id,
-                    final_message,
-                    reply_markup=get_boost_finished_keyboard()
-                )
-            except Exception as e:
-                print(f"Failed to send boost finished message to {user_id_str}: {e}")
+                # Try to send with finish image (maps to 12.jpg)
+                from app.utils import _resolve_image_path
+                photo_name = "Deposit bost complited.jpg"
+                photo_path = _resolve_image_path(photo_name)
+                if photo_path:
+                    await bot.send_photo(
+                        chat_id=user_id,
+                        photo=FSInputFile(photo_path),
+                        caption=final_message,
+                        reply_markup=get_boost_finished_keyboard(),
+                        parse_mode="HTML"
+                    )
+                else:
+                    await bot.send_message(
+                        user_id,
+                        final_message,
+                        reply_markup=get_boost_finished_keyboard()
+                    )
+                except Exception as e:
+                    print(f"Failed to send boost finished message to {user_id_str}: {e}")
 
 def get_user_boost_info(user_id: int):
     data = get_boost_data()

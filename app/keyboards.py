@@ -106,10 +106,10 @@ def get_boost_finished_keyboard():
     return keyboard
 
 
-def get_paid_boost_keyboard():
-    """Keyboard for the paid boost message."""
+def get_paid_boost_keyboard(manager_url: str):
+    """Keyboard for the paid boost message with external manager link."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Я оплатив", callback_data="paid_boost_confirmed")],
+        [InlineKeyboardButton(text="Я оплатив", url=manager_url)],
         [InlineKeyboardButton(text="Меню", callback_data="choose_platform")]
     ])
     return keyboard

