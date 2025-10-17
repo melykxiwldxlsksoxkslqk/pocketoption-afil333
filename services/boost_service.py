@@ -250,7 +250,12 @@ async def check_and_notify_active_boosts(bot: Bot):
                 else:
                     logging.error(f"Failed to send balance update to {user_id_str} due to Telegram error: {e}", exc_info=True)
             except Exception as e:
-                logging.error(f"An unexpected error occurred while sending balance update to {user_id_str}: {e}", exc_info=True) 
+                from aiogram.exceptions import TelegramForbiddenError
+                if isinstance(e, TelegramForbiddenError):
+                    logging.warning(f"User {user_id_str} blocked the bot. Deactivating boost.")
+                    stop_boost(user_id)
+                else:
+                    logging.error(f"An unexpected error occurred while sending balance update to {user_id_str}: {e}", exc_info=True) 
 
 async def finalize_boost_and_notify(bot: Bot, user_id: int, messages=None) -> bool:
     """Marks boost inactive, sets final balance, and sends finish message once."""

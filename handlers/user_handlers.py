@@ -128,6 +128,8 @@ async def back_to_platform_select(callback: types.CallbackQuery, state: FSMConte
 async def platform_selected_handler(callback: types.CallbackQuery, state: FSMContext):
     """Handles selection of a trading platform."""
     platform = callback.data.split("_")[1]
+    # Lazy import to avoid circular dependencies; imported early to prevent UnboundLocalError
+    from app.dispatcher import admin_panel
     
     if platform == "binance":
         await send_message_with_photo(
@@ -193,7 +195,7 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                         amount_to_pay=f"{amount_to_pay:.2f}",
                         wallet_address=admin_panel.get_wallet_address()
                     ),
-                    reply_markup=get_paid_boost_keyboard(),
+                    reply_markup=get_paid_boost_keyboard(MANAGER_URL),
                     parse_mode="HTML"
                 )
                 await state.set_state(UserFlow.waiting_for_payment_screenshot)
