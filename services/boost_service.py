@@ -93,9 +93,16 @@ def start_boost(user_id: int, initial_balance: float, platform: str):
         'final_balance': None,
         'boost_count': data.get(user_id_str, {}).get('boost_count', 0) + 1,
         'platform': platform,
-        'finished_notified': False
+        'finished_notified': False,
+        'free_boost_used': True
     }
     save_boost_data(data)
+    # Persist per-user flag so it survives any boost-data resets
+    try:
+        from app.dispatcher import admin_panel as _admin_panel
+        _admin_panel.update_user_field(user_id, "free_boost_used", True)
+    except Exception:
+        pass
 
 def stop_boost(user_id: int):
     data = get_boost_data()
@@ -110,7 +117,17 @@ def stop_boost(user_id: int):
             data[user_id_str]['is_active'] = False
             if final_info:
                 data[user_id_str]['final_balance'] = final_info['current_balance']
+            # Mark free boost used flag defensively and persist last final balance to admin profile
+            data[user_id_str]['free_boost_used'] = True
             save_boost_data(data)
+            try:
+                from app.dispatcher import admin_panel as _admin_panel
+                last_final = (final_info or {}).get('current_balance')
+                if last_final is not None:
+                    _admin_panel.update_user_field(user_id, "last_final_balance", float(last_final))
+                _admin_panel.update_user_field(user_id, "free_boost_used", True)
+            except Exception:
+                pass
 
 
 async def update_all_boosts(bot: Bot):
@@ -277,7 +294,14 @@ async def finalize_boost_and_notify(bot: Bot, user_id: int, messages=None) -> bo
             latest[key]['is_active'] = False
             latest[key]['final_balance'] = final_info.get('current_balance', info.get('current_balance', 0.0))
             latest[key]['finished_notified'] = True
+            latest[key]['free_boost_used'] = True
             save_boost_data(latest)
+            try:
+                from app.dispatcher import admin_panel as _admin_panel
+                _admin_panel.update_user_field(user_id, "free_boost_used", True)
+                _admin_panel.update_user_field(user_id, "last_final_balance", float(latest[key]['final_balance']))
+            except Exception:
+                pass
 
         start_bal = final_info.get('start_balance', info.get('start_balance', 0.0))
         fin_bal = final_info.get('current_balance', info.get('current_balance', 0.0))

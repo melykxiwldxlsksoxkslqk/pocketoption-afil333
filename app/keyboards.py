@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 # URLs for external links
 ABOUT_US_URL = "https://teletype.in/@trdrocketua/DN_LSR6eWNw"
 FAQ_URL = "https://teletype.in/@trdrocketua/2IiklQY1uiX"
-TELEGRAM_URL = "https://t.me/+xAjquQ5_gIwxZGQy"
+TELEGRAM_URL = "https://t.me/+bWIZFj7N9RJlYmYy"
 
 
 def get_start_keyboard():

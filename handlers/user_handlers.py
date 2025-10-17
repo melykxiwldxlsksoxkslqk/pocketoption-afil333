@@ -151,6 +151,32 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
         await state.update_data(platform=platform) # Save platform to state
         user_id = callback.from_user.id
         boost_info = update_balance_on_demand(user_id)
+        # Enforce single free boost per user based on persisted profile flag
+        try:
+            from app.dispatcher import admin_panel as _admin_panel
+            profile = _admin_panel.get_user(user_id) or {}
+            free_used = bool(profile.get("free_boost_used"))
+            if free_used and (not boost_info or not boost_info.get('is_active')):
+                final_balance_for_pay = (boost_info or {}).get('final_balance') or profile.get('last_final_balance') or 0
+                amount_to_pay = 150 + (float(final_balance_for_pay) * 0.30)
+                await send_message_with_photo(
+                    message=callback,
+                    photo_name="free bots alrady used.jpg",
+                    text=messages["pocket_option_paid_boost"].format(
+                        amount_to_pay=f"{amount_to_pay:.2f}",
+                        wallet_address=_admin_panel.get_wallet_address()
+                    ),
+                    reply_markup=get_paid_boost_keyboard(MANAGER_URL),
+                    parse_mode="HTML"
+                )
+                await state.set_state(UserFlow.waiting_for_payment_screenshot)
+                await callback.answer()
+                return
+        except Exception:
+            pass
+
+        user_id = callback.from_user.id
+        boost_info = update_balance_on_demand(user_id)
 
         if boost_info:
             if boost_info.get('is_active'):
@@ -629,6 +655,30 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(UserFlow.pocket_option_ready_to_boost)
         return
 
+    # Prevent starting a new free boost if already used
+    try:
+        from app.dispatcher import admin_panel as _admin_panel
+        profile = _admin_panel.get_user(user_id) or {}
+        if profile.get("free_boost_used"):
+            boost_info = get_user_boost_info(user_id) or {}
+            final_balance_for_pay = boost_info.get('final_balance') or profile.get('last_final_balance') or 0
+            amount_to_pay = 150 + (float(final_balance_for_pay) * 0.30)
+            await send_message_with_photo(
+                message=callback,
+                photo_name="free bots alrady used.jpg",
+                text=messages["pocket_option_paid_boost"].format(
+                    amount_to_pay=f"{amount_to_pay:.2f}",
+                    wallet_address=_admin_panel.get_wallet_address()
+                ),
+                reply_markup=get_paid_boost_keyboard(MANAGER_URL),
+                parse_mode="HTML"
+            )
+            await state.set_state(UserFlow.waiting_for_payment_screenshot)
+            await callback.answer()
+            return
+    except Exception:
+        pass
+
     # Now, we start the boost with the retrieved balance and platform
     start_boost(user_id, initial_balance, platform)
     await state.update_data(initial_balance=None) # Clear it from state after use
@@ -673,7 +723,9 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
     user_id = callback.from_user.id
     boost_info = get_user_boost_info(user_id) or {}
 
-    final_balance = boost_info.get('final_balance', boost_info.get('current_balance', 0))
+    # Prefer persisted last_final_balance if present
+    profile = admin_panel.get_user(user_id) or {}
+    final_balance = profile.get('last_final_balance', boost_info.get('final_balance', boost_info.get('current_balance', 0)))
     amount_to_pay = 150 + (final_balance * 0.30)
 
     await send_message_with_photo(
