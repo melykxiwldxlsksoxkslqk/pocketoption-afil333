@@ -128,8 +128,6 @@ async def back_to_platform_select(callback: types.CallbackQuery, state: FSMConte
 async def platform_selected_handler(callback: types.CallbackQuery, state: FSMContext):
     """Handles selection of a trading platform."""
     platform = callback.data.split("_")[1]
-    # Lazy import to avoid circular dependencies; imported early to prevent UnboundLocalError
-    from app.dispatcher import admin_panel
     
     if platform == "binance":
         await send_message_with_photo(
@@ -214,12 +212,13 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             elif boost_info.get('boost_count', 0) > 0: # Used free boost, now show paid
                 final_balance = boost_info.get('final_balance', boost_info.get('current_balance', 0))
                 amount_to_pay = 150 + (final_balance * 0.30)
+                from app.dispatcher import admin_panel as _admin_panel
                 await send_message_with_photo(
                     message=callback,
                     photo_name="free bots alrady used.jpg",
                     text=messages["pocket_option_paid_boost"].format(
                         amount_to_pay=f"{amount_to_pay:.2f}",
-                        wallet_address=admin_panel.get_wallet_address()
+                        wallet_address=_admin_panel.get_wallet_address()
                     ),
                     reply_markup=get_paid_boost_keyboard(MANAGER_URL),
                     parse_mode="HTML"
@@ -238,14 +237,14 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             return
 
         # No boost info, show the registration message
-        from app.dispatcher import admin_panel
-        settings = admin_panel.get_referral_settings()
+        from app.dispatcher import admin_panel as _admin_panel
+        settings = _admin_panel.get_referral_settings()
         # Prefer a single unified referral_link if present; fallback to region-specific
         link_unified = settings.get("referral_link")
         link_all = settings.get("referral_link_all")
         link_russia = settings.get("referral_link_russia")
         chosen_link = link_unified or link_all or link_russia or "#"
-        min_deposit = admin_panel.get_referral_settings().get("min_deposit", 100)
+        min_deposit = _admin_panel.get_referral_settings().get("min_deposit", 100)
         
         await send_message_with_photo(
             message=callback,
