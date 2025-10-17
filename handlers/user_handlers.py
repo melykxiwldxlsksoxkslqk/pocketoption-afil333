@@ -124,7 +124,7 @@ async def back_to_platform_select(callback: types.CallbackQuery, state: FSMConte
     await choose_platform_handler(callback, state)
 
 
-@user_router.callback_query(F.data.startswith("platform_"), UserFlow.platform_selection)
+@user_router.callback_query(F.data.startswith("platform_"))
 async def platform_selected_handler(callback: types.CallbackQuery, state: FSMContext):
     """Handles selection of a trading platform."""
     platform = callback.data.split("_")[1]
