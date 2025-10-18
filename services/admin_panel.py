@@ -58,6 +58,20 @@ class AdminPanel:
                 "signals_generated": 0
             }
             self._save_data()
+
+    def reset_all_languages(self) -> int:
+        """Удаляет у всех пользователей сохранённый язык ('lang' и старое 'language').
+        Возвращает количество обновлённых записей."""
+        users = self.data.setdefault("users", {})
+        changed = 0
+        for uid, u in users.items():
+            if isinstance(u, dict) and ("lang" in u or "language" in u):
+                u.pop("lang", None)
+                u.pop("language", None)
+                changed += 1
+        if changed:
+            self._save_data()
+        return changed
     
     def _migrate_data(self):
         """

@@ -66,6 +66,7 @@ async def show_admin_panel(message: Message | CallbackQuery, state: FSMContext):
             builder.row(*new_row)
             
     builder.row(InlineKeyboardButton(text="👥 Просмотреть аккаунты", callback_data="admin_view_accounts"))
+    builder.row(InlineKeyboardButton(text="🌐 Сбросить язык всем", callback_data="admin_reset_lang_all"))
     
     markup = builder.as_markup()
 
@@ -82,6 +83,18 @@ async def show_admin_panel(message: Message | CallbackQuery, state: FSMContext):
         await message.answer()
     else:
         await message.answer(text, reply_markup=markup, parse_mode="HTML")
+
+@admin_router.callback_query(F.data == "admin_reset_lang_all")
+async def admin_reset_lang_all(callback: CallbackQuery):
+    """Сбрасывает сохранённый язык у всех пользователей."""
+    from app.dispatcher import admin_panel
+    if not admin_panel.is_admin(callback.from_user.id):
+        await callback.answer("Доступ запрещён.", show_alert=True)
+        return
+    changed = admin_panel.reset_all_languages()
+    await callback.answer(f"✅ Язык сброшен у {changed} пользователей.", show_alert=True)
+    # Обновим панель
+    await show_admin_panel(callback, FSMContext(callback.bot, callback.from_user.id))
 
 @admin_router.callback_query(F.data == "admin_view_accounts")
 async def view_accounts_handler(callback: CallbackQuery):
