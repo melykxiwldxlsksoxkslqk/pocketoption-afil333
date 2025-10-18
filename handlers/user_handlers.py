@@ -42,17 +42,28 @@ with open(RU_TEMPLATES_PATH, 'r', encoding='utf-8') as f:
 
 
 def _get_user_lang(user_id: int) -> str:
-    """Returns 'ru' or 'uk'. Defaults to 'uk' on any error."""
+    """Returns 'ru' or 'uk'. Defaults to 'uk' on any error.
+    If either profile['language'] or profile['lang'] indicates Russian, returns 'ru'."""
     try:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
-        # Prefer 'language' as primary, fallback to 'lang'
-        raw = (profile.get('language') or profile.get('lang') or 'uk')
-        lang_val = str(raw).strip().lower()
-        # Normalize russian variants
-        if lang_val in {"ru", "ru-ru", "russian", "русский", "rus"}:
+        def _norm(v):
+            if not isinstance(v, str):
+                return ""
+            vv = v.strip().lower()
+            if vv in {"ru", "ru-ru", "russian", "русский", "rus"}:
+                return "ru"
+            if vv in {"uk", "ua", "ukrainian", "українська", "ukr"}:
+                return "uk"
+            return ""
+        cand1 = _norm(profile.get('language'))
+        cand2 = _norm(profile.get('lang'))
+        # Prefer RU if any field says RU; else if any says UK; else default UK
+        if 'ru' in {cand1, cand2}:
             return 'ru'
-        return 'ru' if lang_val == 'ru' else 'uk'
+        if 'uk' in {cand1, cand2}:
+            return 'uk'
+        return 'uk'
     except Exception:
         return 'uk'
 
