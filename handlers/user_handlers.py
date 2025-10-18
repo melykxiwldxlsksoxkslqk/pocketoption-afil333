@@ -46,8 +46,8 @@ def _get_user_lang(user_id: int) -> str:
     try:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
-        lang = (profile.get('lang') or 'uk').lower()
-        return 'ru' if lang == 'ru' else 'uk'
+        lang_val = (profile.get('lang') or profile.get('language') or 'uk').lower()
+        return 'ru' if lang_val == 'ru' else 'uk'
     except Exception:
         return 'uk'
 
@@ -154,6 +154,7 @@ async def choose_language_handler(callback: types.CallbackQuery, state: FSMConte
     try:
         from app.dispatcher import admin_panel as _admin_panel
         _admin_panel.update_user_field(user_id, 'lang', selected)
+        _admin_panel.update_user_field(user_id, 'language', selected)
     except Exception:
         pass
     # Send start in chosen language

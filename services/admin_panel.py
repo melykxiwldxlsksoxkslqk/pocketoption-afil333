@@ -34,6 +34,11 @@ class AdminPanel:
                 u["is_registered"] = False
             if not isinstance(u.get("has_deposit"), bool):
                 u["has_deposit"] = False
+            # Harmonize language keys
+            if "language" in u and "lang" not in u and isinstance(u.get("language"), str):
+                u["lang"] = u.get("language")
+            if "lang" in u and "language" not in u and isinstance(u.get("lang"), str):
+                u["language"] = u.get("lang")
         self._save_data()
 
         # Then, ensure the structure is correct by setting defaults from .env
