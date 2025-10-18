@@ -23,7 +23,7 @@ from services.statistics_service import stats_service
 from storage.credentials_storage import save_credentials, get_credentials
 from services.boost_service import start_boost, stop_boost, get_user_boost_info, update_balance_on_demand
 from datetime import datetime
-from app.utils import send_message_with_photo, get_remaining_time_str
+from app.utils import send_message_with_photo, get_remaining_time_str, _send_text_message
 # Avoid circular import: import admin_panel lazily at usage sites
 
 # TODO: Replace with actual URLs
@@ -125,10 +125,9 @@ async def start_handler(event: types.Message | types.CallbackQuery, state: FSMCo
         profile = _admin_panel.get_user(user_id) or {}
         lang = (profile.get('lang') or '').lower()
         if lang not in ('uk', 'ru'):
-            # Show language select first
-            await send_message_with_photo(
-                message=event,
-                photo_name="hello.jpg",
+            # Show language select first (TEXT ONLY, no image)
+            await _send_text_message(
+                message=event if isinstance(event, types.Message) else event.message,
                 text=messages.get("choose_language", "🌐 Оберіть мову / Choose language / Выберите язык"),
                 reply_markup=get_language_select_keyboard()
             )
