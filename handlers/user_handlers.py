@@ -47,7 +47,11 @@ def _get_user_lang(user_id: int) -> str:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
         # Prefer 'language' as primary, fallback to 'lang'
-        lang_val = (profile.get('language') or profile.get('lang') or 'uk').lower()
+        raw = (profile.get('language') or profile.get('lang') or 'uk')
+        lang_val = str(raw).strip().lower()
+        # Normalize russian variants
+        if lang_val in {"ru", "ru-ru", "russian", "русский", "rus"}:
+            return 'ru'
         return 'ru' if lang_val == 'ru' else 'uk'
     except Exception:
         return 'uk'
