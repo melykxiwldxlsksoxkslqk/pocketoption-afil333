@@ -286,13 +286,15 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
 
                 else:
                     # Boost is active and time is remaining
-                    hours, remainder = divmod(time_left.seconds, 3600)
-                    minutes, _ = divmod(remainder, 60)
+                    remaining_time = get_remaining_time_str(end_time, _get_user_lang(user_id))
+                    caption = _msg("pocket_option_current_balance", user_id).format(
+                        current_balance=f"${boost_info['current_balance']:.2f}",
+                        remaining_time=remaining_time
+                    )
                     await send_message_with_photo(
                         message=callback,
                         photo_name="your currency balance.jpg",
-                        text=f"Ваш поточний баланс: ${boost_info['current_balance']:.2f}\n"
-                        f"Час до завершення розгону: {time_left.days}д {hours}г {minutes}хв",
+                        text=caption,
                         reply_markup=get_boost_active_keyboard(_get_user_lang(user_id))
                     )
                     await state.set_state(UserFlow.pocket_option_boosting)
@@ -1029,9 +1031,10 @@ async def current_balance_handler(callback: types.CallbackQuery, state: FSMConte
     )
  
     try:
-        # Без картинки — только текст и клавиатура
-        await callback.message.answer(
-            caption,
+        await send_message_with_photo(
+            message=callback,
+            photo_name="your currency balance.jpg",
+            text=caption,
             reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id))
         )
         await callback.answer()
