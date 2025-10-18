@@ -38,30 +38,43 @@ def _apply_image_alias(photo_name: str) -> str:
     return mapped or photo_name
 
 
-def _resolve_image_path(photo_name: str) -> str | None:
+def _resolve_image_path(photo_name: str, lang: str | None = None) -> str | None:
     """Try to find the image by name relative to project root regardless of CWD.
+    If lang == 'ru' and RU-variant exists (e.g. "1 (2).jpg"), prefer it.
     Returns absolute path or None if not found."""
     # Apply mapping first
     effective_name = _apply_image_alias(photo_name)
 
-    candidates = []
+    # Build name variants with language preference
+    names_to_try = []
+    if lang and lang.lower() == 'ru':
+        root, ext = os.path.splitext(effective_name)
+        if ext:
+            ru_variant = f"{root} (2){ext}"
+            names_to_try.append(ru_variant)
+    names_to_try.append(effective_name)
+
     # app/utils.py -> project root = parent of app
     project_root = _PROJECT_ROOT
-    candidates.append(os.path.join(project_root, 'images', effective_name))
-    # Also try current working directory
-    candidates.append(os.path.join(os.getcwd(), 'images', effective_name))
 
-    for path in candidates:
-        if os.path.exists(path):
-            return path
+    # Search candidates deterministically
+    for name in names_to_try:
+        candidates = [
+            os.path.join(project_root, 'images', name),
+            os.path.join(os.getcwd(), 'images', name)
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                return path
 
     # Case-insensitive lookup inside known images folders
     for folder in {os.path.join(project_root, 'images'), os.path.join(os.getcwd(), 'images')}:
         if os.path.isdir(folder):
-            lower_target = effective_name.lower()
             try:
+                lower_targets = [n.lower() for n in names_to_try]
                 for fname in os.listdir(folder):
-                    if fname.lower() == lower_target:
+                    f_lower = fname.lower()
+                    if f_lower in lower_targets:
                         return os.path.join(folder, fname)
             except Exception:
                 pass
@@ -82,6 +95,7 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         chat_id = message.message.chat.id
         message_id = message.message.message_id
         original_message_to_delete = message.message.message_id if not edit else None
+        user_id = message.from_user.id
     else:
         # For regular messages, we edit the message itself
         # Guard if message is None (e.g., previous call failed and returned None)
@@ -91,6 +105,16 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         chat_id = message.chat.id
         message_id = getattr(message, 'message_id', None)
         original_message_to_delete = message.message_id if not edit else None
+        user_id = message.from_user.id if hasattr(message, 'from_user') else None
+
+    # Resolve user's language for image variant and caching
+    user_lang = 'uk'
+    try:
+        profile = admin_panel.get_user(user_id) or {}
+        l = (profile.get('lang') or 'uk').lower()
+        user_lang = 'ru' if l == 'ru' else 'uk'
+    except Exception:
+        pass
 
     # If we're editing and the new text/caption is identical to existing, skip API call
     if edit:
@@ -111,7 +135,7 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
             # If introspection fails, proceed normally
             pass
 
-    photo_path = _resolve_image_path(photo_name)
+    photo_path = _resolve_image_path(photo_name, user_lang)
     if not photo_path:
         logger.error(f"Photo not found: {photo_name}")
         # Fallback to a text message and RETURN the message so callers can reuse it
@@ -142,7 +166,8 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
                 logger.warning(f"Edit text fallback failed: {e}. Sending new message")
         return await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
 
-    cached_file_id = admin_panel.get_file_id(photo_name)
+    cache_key = f"{photo_name}__{user_lang}"
+    cached_file_id = admin_panel.get_file_id(cache_key)
     photo_input = cached_file_id if cached_file_id else FSInputFile(photo_path)
     media = InputMediaPhoto(media=photo_input, caption=text, parse_mode=parse_mode)
 
@@ -174,7 +199,7 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
             )
 
         if not cached_file_id and getattr(sent_message, 'photo', None):
-            admin_panel.set_file_id(photo_name, sent_message.photo[-1].file_id)
+            admin_panel.set_file_id(cache_key, sent_message.photo[-1].file_id)
         
         return sent_message
 
