@@ -80,7 +80,7 @@ def _resolve_image_path(photo_name: str, lang: str | None = None) -> str | None:
                 pass
     return None
 
-async def send_message_with_photo(message: Message, photo_name: str, text: str, reply_markup=None, parse_mode="HTML", edit=False):
+async def send_message_with_photo(message: Message, photo_name: str, text: str, reply_markup=None, parse_mode="HTML", edit=False, lang: str | None = None):
     """
     Sends or edits a message to include a photo, using cached file_id if available.
     If edit is True, it will try to edit the provided message.
@@ -109,13 +109,17 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         user_id = chat_id
 
     # Resolve user's language for image variant and caching
-    user_lang = 'uk'
-    try:
-        profile = admin_panel.get_user(user_id) or {}
-        l = (profile.get('lang') or 'uk').lower()
-        user_lang = 'ru' if l == 'ru' else 'uk'
-    except Exception:
-        pass
+    user_lang = None
+    if isinstance(lang, str) and lang.lower() in ("ru", "uk"):
+        user_lang = lang.lower()
+    else:
+        user_lang = 'uk'
+        try:
+            profile = admin_panel.get_user(user_id) or {}
+            l = (profile.get('lang') or 'uk').lower()
+            user_lang = 'ru' if l == 'ru' else 'uk'
+        except Exception:
+            pass
 
     # If we're editing and the new text/caption is identical to existing, skip API call
     if edit:

