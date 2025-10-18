@@ -110,16 +110,25 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
 
     # Resolve user's language for image variant and caching
     user_lang = None
-    if isinstance(lang, str) and lang.lower() in ("ru", "uk"):
-        user_lang = lang.lower()
+    def _normalize_lang(value: str | None) -> str:
+        if not isinstance(value, str):
+            return "uk"
+        v = value.strip().lower()
+        if v in {"ru", "ru-ru", "russian", "русский", "rus"}:
+            return "ru"
+        if v in {"uk", "ua", "ukrainian", "українська", "ukr"}:
+            return "uk"
+        return "uk"
+    if isinstance(lang, str):
+        user_lang = _normalize_lang(lang)
     else:
         user_lang = 'uk'
-        try:
-            profile = admin_panel.get_user(user_id) or {}
-            l = (profile.get('lang') or 'uk').lower()
-            user_lang = 'ru' if l == 'ru' else 'uk'
-        except Exception:
-            pass
+    try:
+        profile = admin_panel.get_user(user_id) or {}
+        l = profile.get('language') or profile.get('lang') or 'uk'
+        user_lang = _normalize_lang(l)
+    except Exception:
+        pass
 
     # If we're editing and the new text/caption is identical to existing, skip API call
     if edit:
