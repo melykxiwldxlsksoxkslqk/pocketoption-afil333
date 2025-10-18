@@ -46,7 +46,8 @@ def _get_user_lang(user_id: int) -> str:
     try:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
-        lang_val = (profile.get('lang') or profile.get('language') or 'uk').lower()
+        # Prefer 'language' as primary, fallback to 'lang'
+        lang_val = (profile.get('language') or profile.get('lang') or 'uk').lower()
         return 'ru' if lang_val == 'ru' else 'uk'
     except Exception:
         return 'uk'
@@ -142,7 +143,8 @@ async def start_handler(event: types.Message | types.CallbackQuery, state: FSMCo
         message=event,
         photo_name="hello.jpg",
         text=_msg("start_message", user_id),
-        reply_markup=get_start_keyboard(lang)
+        reply_markup=get_start_keyboard(lang),
+        lang=lang
     )
     await state.set_state(UserFlow.main_menu)
 
@@ -162,7 +164,8 @@ async def choose_language_handler(callback: types.CallbackQuery, state: FSMConte
         message=callback,
         photo_name="hello.jpg",
         text=_msg("start_message", user_id),
-        reply_markup=get_start_keyboard(selected)
+        reply_markup=get_start_keyboard(selected),
+        lang=selected
     )
     await state.set_state(UserFlow.main_menu)
 
@@ -174,7 +177,8 @@ async def choose_platform_handler(callback: types.CallbackQuery, state: FSMConte
         message=callback,
         photo_name="selectplatform.jpg",
         text=_msg("platform_select_message", callback.from_user.id),
-        reply_markup=get_platform_select_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_platform_select_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
     await state.set_state(UserFlow.platform_selection)
 
@@ -223,7 +227,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             message=callback,
             photo_name="binanc.jpg",
             text=_msg("binance_flow_message", callback.from_user.id),
-            reply_markup=get_binance_bybit_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id))
+            reply_markup=get_binance_bybit_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id)),
+            lang=_get_user_lang(callback.from_user.id)
         )
         await state.set_state(UserFlow.binance_flow)
     elif platform == "bybit":
@@ -231,7 +236,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             message=callback,
             photo_name="bybit.jpg",
             text=_msg("bybit_flow_message", callback.from_user.id) if "bybit_flow_message" in messages else _msg("binance_flow_message", callback.from_user.id),
-            reply_markup=get_binance_bybit_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id))
+            reply_markup=get_binance_bybit_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id)),
+            lang=_get_user_lang(callback.from_user.id)
         )
         await state.set_state(UserFlow.bybit_flow)
     elif platform == "pocket":
@@ -281,7 +287,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                         message=callback,
                         photo_name="Deposit bost complited.jpg",
                         text=final_message,
-                        reply_markup=get_boost_finished_keyboard(_get_user_lang(user_id))
+                        reply_markup=get_boost_finished_keyboard(_get_user_lang(user_id)),
+                        lang=_get_user_lang(user_id)
                     )
                     await state.set_state(UserFlow.main_menu) # Or back to start
 
@@ -296,7 +303,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                         message=callback,
                         photo_name="your currency balance.jpg",
                         text=caption,
-                        reply_markup=get_boost_active_keyboard(_get_user_lang(user_id))
+                        reply_markup=get_boost_active_keyboard(_get_user_lang(user_id)),
+                        lang=_get_user_lang(user_id)
                     )
                     await state.set_state(UserFlow.pocket_option_boosting)
             
@@ -335,7 +343,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                         wallet_address=_admin_panel.get_wallet_address()
                     ),
                     reply_markup=get_pocket_option_prereg_keyboard(_get_user_lang(user_id)),
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    lang=_get_user_lang(user_id)
                 )
                 await state.set_state(UserFlow.pocket_option_prereg)
                  
@@ -361,6 +370,7 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             ),
             reply_markup=get_pocket_option_prereg_keyboard(_get_user_lang(user_id)),
             parse_mode="HTML",
+            lang=_get_user_lang(user_id)
         )
         await state.set_state(UserFlow.pocket_option_prereg)
 
