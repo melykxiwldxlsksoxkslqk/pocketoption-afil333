@@ -828,24 +828,23 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     )
 
     await asyncio.sleep(2)
-
+    
     boost_info = update_balance_on_demand(user_id)
     if boost_info:
         end_time = datetime.fromisoformat(boost_info['end_time'])
-        time_left = end_time - datetime.now()
-        hours, remainder = divmod(time_left.seconds, 3600)
-        minutes, _ = divmod(remainder, 60)
-
-        message_text = (
-            f"Ваш поточний баланс: ${boost_info['current_balance']:.2f}\n"
-            f"Час до завершення розгону: {time_left.days}д {hours}г {minutes}хв"
+        lang = _get_user_lang(callback.from_user.id)
+        remaining_time = get_remaining_time_str(end_time, lang)
+        message_text = _msg("pocket_option_current_balance", callback.from_user.id).format(
+            current_balance=f"${boost_info['current_balance']:.2f}",
+            remaining_time=remaining_time
         )
         
         await send_message_with_photo(
             message=callback.message, 
             photo_name="your currency balance.jpg",
             text=message_text,
-            reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id))
+            reply_markup=get_boost_active_keyboard(lang),
+            lang=lang
         )
 
     await state.set_state(UserFlow.pocket_option_boosting)
