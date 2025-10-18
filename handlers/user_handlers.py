@@ -770,7 +770,7 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
         
         await state.set_state(UserFlow.pocket_option_ready_to_boost)
     else:
-\\        await message.answer(_msg("invalid_login_format", message.from_user.id, override_lang=_get_user_lang(message.from_user.id)), parse_mode="HTML")
+        await message.answer(_msg("invalid_login_format", message.from_user.id, override_lang=_get_user_lang(message.from_user.id)), parse_mode="HTML")
 
 @user_router.callback_query(F.data == "start_boost", StateFilter(UserFlow.pocket_option_ready_to_boost))
 async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
