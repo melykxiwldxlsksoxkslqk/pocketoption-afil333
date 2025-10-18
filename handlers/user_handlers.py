@@ -963,7 +963,8 @@ async def _process_stop_boost(event: types.Message | types.CallbackQuery, state:
     await asyncio.sleep(random.randint(2, 4))
     
     if boost_info:
-        final_message = messages['pocket_option_boost_finished'].format(
+        lang = _get_user_lang(user_id)
+        final_message = _msg('pocket_option_boost_finished', user_id).format(
             initial_balance=f"${boost_info['start_balance']:.2f}",
             final_balance=f"${boost_info['current_balance']:.2f}"
         )
@@ -971,14 +972,17 @@ async def _process_stop_boost(event: types.Message | types.CallbackQuery, state:
             message=event,
             photo_name="Deposit bost complited.jpg", # maps -> 12.jpg
             text=final_message,
-            reply_markup=get_boost_finished_keyboard(_get_user_lang(user_id))
+            reply_markup=get_boost_finished_keyboard(lang),
+            lang=lang
         )
     else:
+        lang = _get_user_lang(user_id)
         await send_message_with_photo(
             message=event,
             photo_name="succes connected.jpg",
             text=_msg("pocket_option_stopped", user_id),
-            reply_markup=get_boost_finished_keyboard(_get_user_lang(user_id))
+            reply_markup=get_boost_finished_keyboard(lang),
+            lang=lang
         )
     stop_boost(user_id)
     await state.clear()
