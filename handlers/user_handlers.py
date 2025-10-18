@@ -191,7 +191,7 @@ async def stats_irl_handler(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(account_index=account_index)
     account_info = stats_service.get_account_info(account_index)
     
-    title = messages.get("stats_title") or ""
+    title = _msg("stats_title", callback.from_user.id)
     combined_text = f"{title}\n\n{account_info}" if title else account_info
     
     if len(combined_text) > 1024:
@@ -1064,7 +1064,7 @@ async def view_statistics(callback: CallbackQuery, state: FSMContext):
     await state.update_data(account_index=0)
     account_info = stats_service.get_account_info(0)
     
-    title = messages.get("stats_title") or ""
+    title = _msg("stats_title", callback.from_user.id)
     combined_text = f"{title}\n\n{account_info}" if title else account_info
     
     if len(combined_text) > 1024:
@@ -1089,7 +1089,7 @@ async def update_statistics(callback: CallbackQuery, state: FSMContext):
     await state.update_data(account_index=new_index)
     account_info = stats_service.get_account_info(new_index)
 
-    title = messages.get("stats_title") or ""
+    title = _msg("stats_title", callback.from_user.id)
     combined_text = f"{title}\n\n{account_info}" if title else account_info
 
     if len(combined_text) > 1024:
