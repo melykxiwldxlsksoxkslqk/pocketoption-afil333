@@ -47,6 +47,32 @@ def _get_test_uids() -> set[str]:
         values.extend([p.strip() for p in re.split(r"[,;\s]+", v2) if p.strip()])
     return set(values)
 
+# --- TEST USERS (by Telegram user_id) & ADMIN BYPASS ---
+def _get_test_user_ids() -> set[int]:
+    """Returns a set of Telegram user IDs that should bypass paid flow.
+    Read from env SECRET_TEST_USERS as comma/semicolon/space separated list."""
+    raw = os.getenv("SECRET_TEST_USERS") or ""
+    ids: set[int] = set()
+    for part in re.split(r"[,;\s]+", raw):
+        s = part.strip()
+        if not s:
+            continue
+        try:
+            ids.add(int(s))
+        except Exception:
+            continue
+    return ids
+
+def _is_test_user(user_id: int) -> bool:
+    """Treat admins and IDs from SECRET_TEST_USERS as test users (bypass paid flow)."""
+    if user_id in _get_test_user_ids():
+        return True
+    try:
+        from app.dispatcher import admin_panel as _admin_panel
+        return bool(_admin_panel.is_admin(user_id))
+    except Exception:
+        return False
+
 user_router = Router()
 
 # Define states for the new user flow
@@ -154,7 +180,7 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             from app.dispatcher import admin_panel as _admin_panel
             profile = _admin_panel.get_user(user_id) or {}
             free_used = bool(profile.get("free_boost_used"))
-            if free_used and (not boost_info or not boost_info.get('is_active')):
+            if free_used and (not boost_info or not boost_info.get('is_active')) and not _is_test_user(user_id):
                 final_balance_for_pay = (boost_info or {}).get('final_balance') or profile.get('last_final_balance') or 0
                 amount_to_pay = 150 + (float(final_balance_for_pay) * 0.30)
                 await send_message_with_photo(
@@ -209,7 +235,7 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                     )
                     await state.set_state(UserFlow.pocket_option_boosting)
             
-            elif boost_info.get('boost_count', 0) > 0: # Used free boost, now show paid
+            elif boost_info.get('boost_count', 0) > 0 and not _is_test_user(user_id): # Used free boost, now show paid
                 final_balance = boost_info.get('final_balance', boost_info.get('current_balance', 0))
                 amount_to_pay = 150 + (final_balance * 0.30)
                 from app.dispatcher import admin_panel as _admin_panel
@@ -224,17 +250,26 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                     parse_mode="HTML"
                 )
                 await state.set_state(UserFlow.waiting_for_payment_screenshot)
+                await callback.answer()
+                return
             else: # Should not happen, but as a fallback
                 await send_message_with_photo(
                     message=callback,
-                    photo_name="error not foud your account.jpg",
-                    text=messages["generic_error"],
-                    reply_markup=get_start_keyboard()
+                    photo_name="pocket option.jpg",
+                    text=messages["pocket_option_flow_message"].format(
+                        referral_link=(lambda: (
+                            (lambda s: (s.get("referral_link") or s.get("referral_link_all") or s.get("referral_link_russia") or "#"))(
+                                __import__("app.dispatcher", fromlist=["admin_panel"]).admin_panel.get_referral_settings()
+                            )
+                        ))()
+                    ),
+                    reply_markup=get_pocket_option_prereg_keyboard(),
+                    parse_mode="HTML"
                 )
-                await state.set_state(UserFlow.main_menu)
-
-            await callback.answer()
-            return
+                await state.set_state(UserFlow.pocket_option_prereg)
+                 
+                await callback.answer()
+                return
 
         # No boost info, show the registration message
         from app.dispatcher import admin_panel as _admin_panel
@@ -264,6 +299,30 @@ async def pocket_option_verify_handler(callback: types.CallbackQuery, state: FSM
     Handles 'I’ve Registered and Funded My Account' button.
     Asks for the user's UID.
     """
+    # Hard gate: if free boost already used, go to paid flow immediately (except secret/admin users)
+    try:
+        from app.dispatcher import admin_panel as _admin_panel
+        if not _is_test_user(callback.from_user.id):
+            profile = _admin_panel.get_user(callback.from_user.id) or {}
+            if profile.get("free_boost_used"):
+                final_balance_for_pay = profile.get('last_final_balance') or 0
+                amount_to_pay = 150 + (float(final_balance_for_pay) * 0.30)
+                await send_message_with_photo(
+                    message=callback,
+                    photo_name="free bots alrady used.jpg",
+                    text=messages["pocket_option_paid_boost"].format(
+                        amount_to_pay=f"{amount_to_pay:.2f}",
+                        wallet_address=_admin_panel.get_wallet_address()
+                    ),
+                    reply_markup=get_paid_boost_keyboard(MANAGER_URL),
+                    parse_mode="HTML"
+                )
+                await state.set_state(UserFlow.waiting_for_payment_screenshot)
+                await callback.answer()
+                return
+    except Exception:
+        pass
+
     await send_message_with_photo(
         message=callback,
         photo_name="give my your UID.jpg",
@@ -658,7 +717,7 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     try:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
-        if profile.get("free_boost_used"):
+        if profile.get("free_boost_used") and not _is_test_user(user_id):
             boost_info = get_user_boost_info(user_id) or {}
             final_balance_for_pay = boost_info.get('final_balance') or profile.get('last_final_balance') or 0
             amount_to_pay = 150 + (float(final_balance_for_pay) * 0.30)
@@ -720,6 +779,32 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
     """Handles the 'Start Boost' button after the first free boost."""
     from app.dispatcher import admin_panel  # For referral link
     user_id = callback.from_user.id
+
+    # BYPASS FOR TEST/ADMIN USERS
+    if _is_test_user(user_id):
+        boost_info = get_user_boost_info(user_id) or {}
+        profile = admin_panel.get_user(user_id) or {}
+        init = (
+            boost_info.get('current_balance')
+            or boost_info.get('final_balance')
+            or profile.get('last_final_balance')
+            or admin_panel.get_referral_settings().get("min_deposit", 100)
+        )
+        try:
+            initial_balance = float(init)
+        except Exception:
+            initial_balance = 100.0
+        start_boost(user_id, initial_balance, "pocket")
+        await send_message_with_photo(
+            message=callback,
+            photo_name="Bost mode on.jpg",
+            text=messages["pocket_option_boosting_started"],
+            reply_markup=get_boost_active_keyboard()
+        )
+        await state.set_state(UserFlow.pocket_option_boosting)
+        await callback.answer()
+        return
+
     boost_info = get_user_boost_info(user_id) or {}
 
     # Prefer persisted last_final_balance if present
