@@ -105,10 +105,8 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
         chat_id = message.chat.id
         message_id = getattr(message, 'message_id', None)
         original_message_to_delete = message.message_id if not edit else None
-        user_id = message.from_user.id if hasattr(message, 'from_user') and getattr(message, 'from_user') else None
-        # If message was sent by the bot, from_user может отсутствовать — используем chat_id (в приватах это user_id)
-        if user_id is None:
-            user_id = chat_id
+        # В приватных чатах chat_id == user_id, используем его всегда, чтобы не перепутать с bot.id
+        user_id = chat_id
 
     # Resolve user's language for image variant and caching
     user_lang = 'uk'
