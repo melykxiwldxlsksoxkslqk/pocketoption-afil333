@@ -253,7 +253,8 @@ def get_referral_settings_keyboard(settings: dict, lang: str = "uk"):
                 InlineKeyboardButton(text=f"💰 Депозит: ${min_deposit}", callback_data="admin_change_min_deposit")
             ],
             [
-                InlineKeyboardButton(text="🔗 Изменить ссылку", callback_data="admin_change_ref_link")
+                InlineKeyboardButton(text="🔗 Изменить ссылку (ALL)", callback_data="admin_change_ref_link_all"),
+                InlineKeyboardButton(text="🔗 Изменить ссылку (RU)", callback_data="admin_change_ref_link_russia")
             ],
             [InlineKeyboardButton(text="⬅️ Назад к настройкам", callback_data="admin_settings")]
         ]
@@ -263,7 +264,8 @@ def get_referral_settings_keyboard(settings: dict, lang: str = "uk"):
             InlineKeyboardButton(text=f"💰 Депозит: ${min_deposit}", callback_data="admin_change_min_deposit")
         ],
         [
-            InlineKeyboardButton(text="🔗 Змінити посилання", callback_data="admin_change_ref_link")
+            InlineKeyboardButton(text="🔗 Змінити посилання (ALL)", callback_data="admin_change_ref_link_all"),
+            InlineKeyboardButton(text="🔗 Змінити посилання (RU)", callback_data="admin_change_ref_link_russia")
         ],
         [InlineKeyboardButton(text="⬅️ Назад до налаштувань", callback_data="admin_settings")]
     ]
