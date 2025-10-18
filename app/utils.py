@@ -352,15 +352,18 @@ def _format_asset_name(asset: str) -> str:
         return f"{clean_name} OTC"
     return clean_name
 
-def get_remaining_time_str(end_time: datetime) -> str:
-    """Calculates the remaining time and returns it as a formatted string (UA)."""
+def get_remaining_time_str(end_time: datetime, lang: str | None = None) -> str:
+    """Calculates the remaining time and returns it as a formatted string.
+    UA by default; RU if lang == 'ru'."""
     now = datetime.now()
     remaining = end_time - now
     if remaining.total_seconds() <= 0:
-        return "0д 0г 0хв"
+        return "0д 0г 0хв" if (lang or '').lower() != 'ru' else "0д 0ч 0мин"
     
     days = remaining.days
     hours, remainder = divmod(remaining.seconds, 3600)
     minutes, _ = divmod(remainder, 60)
     
+    if (lang or '').lower() == 'ru':
+        return f"{days}д {hours}ч {minutes}мин"
     return f"{days}д {hours}г {minutes}хв"

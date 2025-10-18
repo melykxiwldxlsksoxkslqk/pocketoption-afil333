@@ -273,7 +273,7 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                 if time_left.total_seconds() <= 0:
                     # Boost has expired
                     stop_boost(user_id) # Clear boost data
-                    final_message = messages['pocket_option_boost_finished'].format(
+                    final_message = _msg('pocket_option_boost_finished', user_id).format(
                         initial_balance=f"${boost_info['start_balance']:.2f}",
                         final_balance=f"${boost_info['current_balance']:.2f}"
                     )
@@ -1021,19 +1021,18 @@ async def current_balance_handler(callback: types.CallbackQuery, state: FSMConte
  
     current_balance = boost_info['current_balance']
     end_time = datetime.fromisoformat(boost_info['end_time'])
-    remaining_time = get_remaining_time_str(end_time)
+    remaining_time = get_remaining_time_str(end_time, _get_user_lang(callback.from_user.id))
      
     # Send/update using robust helper (resolves image path)
-    caption = (
-        f"Ваш поточний баланс: ${current_balance:,.2f}\n"
-        f"Час до завершення розгону: {remaining_time}"
+    caption = _msg("pocket_option_current_balance", callback.from_user.id).format(
+        current_balance=f"${current_balance:,.2f}",
+        remaining_time=remaining_time
     )
  
     try:
-        await send_message_with_photo(
-            message=callback,
-            photo_name="your currency balance.jpg",
-            text=caption,
+        # Без картинки — только текст и клавиатура
+        await callback.message.answer(
+            caption,
             reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id))
         )
         await callback.answer()
