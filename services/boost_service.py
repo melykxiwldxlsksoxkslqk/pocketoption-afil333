@@ -18,6 +18,32 @@ from storage.db_store import get_boost_data as storage_get_boost_data, set_boost
 # Avoid circular import by importing admin_panel lazily where needed
 
 
+def _get_user_lang(user_id: int) -> str:
+    """Returns 'ru' or 'uk' based on saved profile; defaults to 'uk'."""
+    try:
+        from app.dispatcher import admin_panel as _admin_panel
+        profile = _admin_panel.get_user(user_id) or {}
+        lang = (profile.get('lang') or 'uk').lower()
+        return 'ru' if lang == 'ru' else 'uk'
+    except Exception:
+        return 'uk'
+
+
+def _load_messages_for_lang(lang: str) -> dict:
+    """Loads message templates for the specified language."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    path = os.path.join(base_dir, 'message_templates.ru.json' if lang == 'ru' else 'message_templates.json')
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        # Fallback to default loader if file missing
+        try:
+            return load_messages()
+        except Exception:
+            return {}
+
+
 def get_boost_data():
     # Read from unified storage
     data = storage_get_boost_data()
@@ -159,13 +185,14 @@ async def check_and_notify_active_boosts(bot: Bot):
     and notifies the user.
     """
     data_before_update = get_boost_data()
-    messages = load_messages()
     active_boosts = [info for info in data_before_update.values() if info.get('is_active')]
     logging.info(f"Checking {len(active_boosts)} active boosts for notifications...")
 
     for boost_info in active_boosts:
         user_id_str = str(boost_info['user_id'])
         user_id = int(user_id_str)
+        lang = _get_user_lang(user_id)
+        messages = _load_messages_for_lang(lang)
         original_balance = boost_info.get('current_balance')
 
         # This function calculates, updates, and saves the new balance
@@ -211,7 +238,7 @@ async def check_and_notify_active_boosts(bot: Bot):
             logging.info(f"Time-based notify for user {user_id_str}.")
             try:
                 end_time = datetime.fromisoformat(boost_info_after_update['end_time'])
-                remaining_time_str = get_remaining_time_str(end_time)
+                remaining_time_str = get_remaining_time_str(end_time, lang)
                     
                 balance_message = messages["pocket_option_current_balance"].format(
                     current_balance=f"${new_balance:.2f}",
@@ -221,7 +248,7 @@ async def check_and_notify_active_boosts(bot: Bot):
                 # Resolve image path robustly from project root
                 photo_name = "your currency balance.jpg"
                 # Use shared resolver that applies images_map aliases (e.g., -> 16.jpg)
-                photo_path = _resolve_image_path(photo_name)
+                photo_path = _resolve_image_path(photo_name, lang)
 
                 # Lazy import to avoid circular dependency at module import time
                 from app.dispatcher import admin_panel
@@ -233,7 +260,7 @@ async def check_and_notify_active_boosts(bot: Bot):
                         chat_id=user_id,
                         photo=photo_input,
                         caption=balance_message,
-                        reply_markup=get_boost_active_keyboard(),
+                        reply_markup=get_boost_active_keyboard(lang),
                         parse_mode="HTML"
                     )
                 else:
@@ -241,7 +268,7 @@ async def check_and_notify_active_boosts(bot: Bot):
                     await bot.send_message(
                         chat_id=user_id,
                         text=balance_message,
-                        reply_markup=get_boost_active_keyboard(),
+                        reply_markup=get_boost_active_keyboard(lang),
                         parse_mode="HTML"
                     )
                     sent_message = None
@@ -278,7 +305,10 @@ async def finalize_boost_and_notify(bot: Bot, user_id: int, messages=None) -> bo
     """Marks boost inactive, sets final balance, and sends finish message once."""
     try:
         if messages is None:
-            messages = load_messages()
+            lang = _get_user_lang(user_id)
+            messages = _load_messages_for_lang(lang)
+        else:
+            lang = _get_user_lang(user_id)
         data = get_boost_data()
         key = str(user_id)
         info = data.get(key)
@@ -309,20 +339,20 @@ async def finalize_boost_and_notify(bot: Bot, user_id: int, messages=None) -> bo
             initial_balance=f"${start_bal:.2f}",
             final_balance=f"${fin_bal:.2f}"
         )
-        photo_path = _resolve_image_path("Deposit bost complited.jpg")
+        photo_path = _resolve_image_path("Deposit bost complited.jpg", lang)
         if photo_path:
             await bot.send_photo(
                 chat_id=user_id,
                 photo=FSInputFile(photo_path),
                 caption=final_message,
-                reply_markup=get_boost_finished_keyboard(),
+                reply_markup=get_boost_finished_keyboard(lang),
                 parse_mode="HTML"
             )
         else:
             await bot.send_message(
                 chat_id=user_id,
                 text=final_message,
-                reply_markup=get_boost_finished_keyboard(),
+                reply_markup=get_boost_finished_keyboard(lang),
                 parse_mode="HTML"
             )
         return True
