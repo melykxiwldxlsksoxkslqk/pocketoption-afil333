@@ -321,8 +321,13 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                     message=callback,
                     photo_name="pocket option.jpg",
                     text=_msg("pocket_option_flow_message", user_id).format(
-                        referral_link=(lambda: (
-                            (lambda s: (s.get("referral_link") or s.get("referral_link_all") or s.get("referral_link_russia") or "#"))(
+                        referral_link_all=(lambda: (
+                            (lambda s: (s.get("referral_link_all") or s.get("referral_link") or "#"))(
+                                __import__("app.dispatcher", fromlist=["admin_panel"]).admin_panel.get_referral_settings()
+                            )
+                        ))(),
+                        referral_link_russia=(lambda: (
+                            (lambda s: (s.get("referral_link_russia") or s.get("referral_link") or "#"))(
                                 __import__("app.dispatcher", fromlist=["admin_panel"]).admin_panel.get_referral_settings()
                             )
                         ))(),
@@ -341,8 +346,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
         settings = _admin_panel.get_referral_settings()
         # Prefer a single unified referral_link if present; fallback to region-specific
         link_unified = settings.get("referral_link")
-        link_all = settings.get("referral_link_all")
-        link_russia = settings.get("referral_link_russia")
+        link_all = settings.get("referral_link_all") or link_unified
+        link_russia = settings.get("referral_link_russia") or link_unified
         chosen_link = link_unified or link_all or link_russia or "#"
         min_deposit = _admin_panel.get_referral_settings().get("min_deposit", 100)
         
@@ -350,7 +355,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
             message=callback,
             photo_name="pocket option.jpg",
             text=_msg("pocket_option_flow_message", user_id).format(
-                referral_link=chosen_link
+                referral_link_all=link_all or "#",
+                referral_link_russia=link_russia or "#"
             ),
             reply_markup=get_pocket_option_prereg_keyboard(_get_user_lang(user_id)),
             parse_mode="HTML",

@@ -4,6 +4,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 ABOUT_US_URL = "https://teletype.in/@trdrocketua/DN_LSR6eWNw"
 FAQ_URL = "https://teletype.in/@trdrocketua/2IiklQY1uiX"
 TELEGRAM_URL = "https://t.me/+bWIZFj7N9RJlYmYy"
+RU_ABOUT_URL = "https://teletype.in/@traderocketai/SHZeFeUrOvf"
+RU_FAQ_URL = "https://teletype.in/@traderocketai/_R5PWCs2tkS"
 
 
 def get_language_select_keyboard():
@@ -21,8 +23,8 @@ def get_start_keyboard(lang: str = "uk"):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Выбрать платформу", callback_data="choose_platform")],
             [
-                InlineKeyboardButton(text="О нас", url=ABOUT_US_URL),
-                InlineKeyboardButton(text="Вопрос/Ответ", url=FAQ_URL)
+                InlineKeyboardButton(text="О нас", url=RU_ABOUT_URL),
+                InlineKeyboardButton(text="Вопрос/Ответ", url=RU_FAQ_URL)
             ],
             [
                 InlineKeyboardButton(text="Наш телеграм", url=TELEGRAM_URL)
