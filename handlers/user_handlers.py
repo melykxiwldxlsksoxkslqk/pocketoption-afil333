@@ -516,7 +516,7 @@ async def _verify_pocket_option_registration(message: types.Message, state: FSMC
     )
     await state.set_state(UserFlow.pocket_option_funding)
 
-async def _verify_pocket_option_deposit(message: types.Message, state: FSMContext, uid: str):
+async def _verify_pocket_option_deposit(message: types.Message | types.CallbackQuery, state: FSMContext, uid: str):
     """Shared logic for deposit verification based on a UID string."""
     from app.dispatcher import admin_panel, trading_api
     user_id = message.from_user.id
@@ -546,7 +546,10 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
         await state.set_state(UserFlow.pocket_option_login_input)
         return
 
-    wait_message = await message.answer("🔎 Перевіряємо ваш баланс...")
+    if isinstance(message, types.CallbackQuery):
+        wait_message = await message.message.answer("🔎 Перевіряємо ваш баланс...")
+    else:
+        wait_message = await message.answer("🔎 Перевіряємо ваш баланс...")
     from app.dispatcher import admin_panel
     min_deposit = admin_panel.get_referral_settings().get("min_deposit", 100)
 
@@ -716,7 +719,7 @@ async def pocket_option_funded_handler(callback: types.CallbackQuery, state: FSM
     
     await callback.message.delete()
     # Pass the UID to the verification function
-    await _verify_pocket_option_deposit(callback.message, state, uid)
+    await _verify_pocket_option_deposit(callback, state, uid)
     await callback.answer()
 
 @user_router.message(UserFlow.pocket_option_login_input)
