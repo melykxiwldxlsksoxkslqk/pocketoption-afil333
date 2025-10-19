@@ -181,7 +181,13 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
                 logger.warning(f"Edit text fallback failed: {e}. Sending new message")
         return await message.bot.send_message(chat_id, text, reply_markup=reply_markup, parse_mode=parse_mode)
 
-    cache_key = f"{photo_name}__{user_lang}"
+    # Use resolved path basename for cache key, so RU/UA variants cache separately
+    try:
+        from os.path import basename
+        resolved_name = basename(photo_path)
+    except Exception:
+        resolved_name = photo_name
+    cache_key = f"{resolved_name}__{user_lang}"
     cached_file_id = admin_panel.get_file_id(cache_key)
     photo_input = cached_file_id if cached_file_id else FSInputFile(photo_path)
     media = InputMediaPhoto(media=photo_input, caption=text, parse_mode=parse_mode)
