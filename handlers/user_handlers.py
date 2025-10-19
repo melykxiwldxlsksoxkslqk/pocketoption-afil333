@@ -292,7 +292,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                         wallet_address=_admin_panel.get_wallet_address()
                     ),
                     reply_markup=get_paid_boost_keyboard(MANAGER_URL, _get_user_lang(user_id)),
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    lang=_get_user_lang(user_id)
                 )
                 await state.set_state(UserFlow.waiting_for_payment_screenshot)
                 await callback.answer()
@@ -352,7 +353,8 @@ async def platform_selected_handler(callback: types.CallbackQuery, state: FSMCon
                         wallet_address=_admin_panel.get_wallet_address()
                     ),
                     reply_markup=get_paid_boost_keyboard(MANAGER_URL, _get_user_lang(user_id)),
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    lang=_get_user_lang(user_id)
                 )
                 await state.set_state(UserFlow.waiting_for_payment_screenshot)
                 await callback.answer()
@@ -429,7 +431,8 @@ async def pocket_option_verify_handler(callback: types.CallbackQuery, state: FSM
                         wallet_address=_admin_panel.get_wallet_address()
                     ),
                     reply_markup=get_paid_boost_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id)),
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    lang=_get_user_lang(callback.from_user.id)
                 )
                 await state.set_state(UserFlow.waiting_for_payment_screenshot)
                 await callback.answer()
