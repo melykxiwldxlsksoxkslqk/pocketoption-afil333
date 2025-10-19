@@ -120,15 +120,16 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
             return "uk"
         return "uk"
     if isinstance(lang, str):
+        # If caller explicitly provided language, respect it and do not override
         user_lang = _normalize_lang(lang)
     else:
-        user_lang = 'uk'
-    try:
-        profile = admin_panel.get_user(user_id) or {}
-        l = profile.get('language') or profile.get('lang') or 'uk'
-        user_lang = _normalize_lang(l)
-    except Exception:
-        pass
+        # Fallback to user's profile language if available; default to 'uk'
+        try:
+            profile = admin_panel.get_user(user_id) or {}
+            l = profile.get('language') or profile.get('lang') or 'uk'
+            user_lang = _normalize_lang(l)
+        except Exception:
+            user_lang = 'uk'
 
     # If we're editing and the new text/caption is identical to existing, skip API call
     if edit:
