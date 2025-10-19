@@ -112,24 +112,28 @@ async def send_message_with_photo(message: Message, photo_name: str, text: str, 
     user_lang = None
     def _normalize_lang(value: str | None) -> str:
         if not isinstance(value, str):
-            return "uk"
+            return "ru"
         v = value.strip().lower()
         if v in {"ru", "ru-ru", "russian", "русский", "rus"}:
             return "ru"
         if v in {"uk", "ua", "ukrainian", "українська", "ukr"}:
             return "uk"
-        return "uk"
+        return "ru"
     if isinstance(lang, str):
         # If caller explicitly provided language, respect it and do not override
         user_lang = _normalize_lang(lang)
+        logger.info(f"send_message_with_photo: User {user_id} using explicit lang={user_lang}")
     else:
-        # Fallback to user's profile language if available; default to 'uk'
+        # Fallback to user's profile language if available; default to 'ru'
         try:
             profile = admin_panel.get_user(user_id) or {}
-            l = profile.get('language') or profile.get('lang') or 'uk'
-            user_lang = _normalize_lang(l)
-        except Exception:
-            user_lang = 'uk'
+            # Check lang field first (most recent), then language field
+            saved_lang = profile.get('lang') or profile.get('language') or 'ru'
+            user_lang = _normalize_lang(saved_lang)
+            logger.info(f"send_message_with_photo: User {user_id} profile lang={profile.get('lang')}, language={profile.get('language')}, using={user_lang}")
+        except Exception as e:
+            user_lang = 'ru'
+            logger.error(f"send_message_with_photo: Error getting user {user_id} lang: {e}, defaulting to ru")
 
     # If we're editing and the new text/caption is identical to existing, skip API call
     if edit:
