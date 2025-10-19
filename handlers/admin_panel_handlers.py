@@ -85,7 +85,7 @@ async def show_admin_panel(message: Message | CallbackQuery, state: FSMContext):
         await message.answer(text, reply_markup=markup, parse_mode="HTML")
 
 @admin_router.callback_query(F.data == "admin_reset_lang_all")
-async def admin_reset_lang_all(callback: CallbackQuery):
+async def admin_reset_lang_all(callback: CallbackQuery, state: FSMContext):
     """Сбрасывает сохранённый язык у всех пользователей."""
     from app.dispatcher import admin_panel
     if not admin_panel.is_admin(callback.from_user.id):
@@ -94,7 +94,7 @@ async def admin_reset_lang_all(callback: CallbackQuery):
     changed = admin_panel.reset_all_languages()
     await callback.answer(f"✅ Язык сброшен у {changed} пользователей.", show_alert=True)
     # Обновим панель
-    await show_admin_panel(callback, FSMContext(callback.bot, callback.from_user.id))
+    await show_admin_panel(callback, state)
 
 @admin_router.callback_query(F.data == "admin_view_accounts")
 async def view_accounts_handler(callback: CallbackQuery):
