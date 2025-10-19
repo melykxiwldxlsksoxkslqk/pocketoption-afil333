@@ -19,14 +19,44 @@ from storage.db_store import get_boost_data as storage_get_boost_data, set_boost
 
 
 def _get_user_lang(user_id: int) -> str:
-    """Returns 'ru' or 'uk' based on saved profile; defaults to 'uk'."""
+    """Returns 'ru' or 'uk'. Defaults to 'ru' on any error.
+    If either profile['language'] or profile['lang'] indicates Russian, returns 'ru'."""
     try:
         from app.dispatcher import admin_panel as _admin_panel
         profile = _admin_panel.get_user(user_id) or {}
-        lang = (profile.get('lang') or 'uk').lower()
-        return 'ru' if lang == 'ru' else 'uk'
-    except Exception:
-        return 'uk'
+        
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"boost_service _get_user_lang: User {user_id} profile: lang={profile.get('lang')}, language={profile.get('language')}")
+        
+        def _norm(v):
+            if not isinstance(v, str):
+                return ""
+            vv = v.strip().lower()
+            if vv in {"ru", "ru-ru", "russian", "русский", "rus"}:
+                return "ru"
+            if vv in {"uk", "ua", "ukrainian", "українська", "ukr"}:
+                return "uk"
+            return ""
+        cand1 = _norm(profile.get('language'))
+        cand2 = _norm(profile.get('lang'))
+        
+        # Prefer explicit saved choice: check lang field first, then language field
+        if cand2:  # profile.get('lang') normalized
+            logger.info(f"boost_service _get_user_lang: User {user_id} using lang field: {cand2}")
+            return cand2
+        if cand1:  # profile.get('language') normalized  
+            logger.info(f"boost_service _get_user_lang: User {user_id} using language field: {cand1}")
+            return cand1
+            
+        # Default to Russian if no explicit choice
+        logger.info(f"boost_service _get_user_lang: User {user_id} defaulting to ru")
+        return 'ru'
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"boost_service _get_user_lang: Error getting user lang for {user_id}: {e}")
+        return 'ru'
 
 
 def _load_messages_for_lang(lang: str) -> dict:
